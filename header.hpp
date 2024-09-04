@@ -23,8 +23,8 @@ constexpr const char* DEFAULT_MESSAGE = "Default message!";
 
 #endif
 
-// Returns
-void exitIfError(const int value, const char *err) {
+// Returns error message if value means error.
+void exitIfError(const int value, const char *err = "code") {
     if(value < 0) {
         std::cout << "Fail on " << err << "! (" << strerror(errno) << ")" << std::endl;
         exit(EXIT_FAILURE);

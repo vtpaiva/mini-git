@@ -10,6 +10,3 @@ server:
 
 clean:
 	rm -f server client
-	
-run:
-	./exec
