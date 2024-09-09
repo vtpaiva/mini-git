@@ -1,6 +1,6 @@
 #include "../header/header.hpp"
 
-int main() {
+int main(int argc, char **argv) {
     SOCKET network_socket = 0;
     char buffer[BUFFER_SIZE] = {0};
 

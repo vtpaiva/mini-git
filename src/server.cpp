@@ -1,7 +1,18 @@
 #include "../header/header.hpp"
 
-constexpr int N_CLIENTS_ACCEPT =  5;
+constexpr int MAX_CLIENTS =  5;
 const char* message = "Hi, client";
+
+void accept_client(SOCKET server_socket, SOCKET client_socket, char buffer[]) {
+    exit_if_error(client_socket = accept(server_socket, nullptr, nullptr),
+                      ACCEPT_ERROR);
+
+        read(client_socket, buffer, BUFFER_SIZE);
+        std::cout << "Mensagem recebida do cliente: " << buffer << std::endl;
+
+        send(client_socket, message, strlen(message), 0);
+        std::cout << "Mensagem enviada para o cliente" << std::endl;
+}
 
 int main(int argc, char **argv) {
     SOCKET server_socket, client_socket;
@@ -28,15 +39,8 @@ int main(int argc, char **argv) {
 
     std::cout << "Servidor esperando por conexões..." << std::endl;
 
-    for(int i = 0; i < N_CLIENTS_ACCEPT; i++) {
-        exit_if_error(client_socket = accept(server_socket, nullptr, nullptr),
-                      ACCEPT_ERROR);
-
-        read(client_socket, buffer, BUFFER_SIZE);
-        std::cout << "Mensagem recebida do cliente: " << buffer << std::endl;
-
-        send(client_socket, message, strlen(message), 0);
-        std::cout << "Mensagem enviada para o cliente" << std::endl;
+    each(MAX_CLIENTS) {
+        accept_client(server_socket, client_socket, buffer);
     }
 
     close(client_socket);

@@ -9,6 +9,8 @@ typedef int SOCKET;
 #ifndef CONTS_H
 #define CONTS_H
 
+#define each(n) for(int i = 0; i < n; i++)
+
 constexpr int PORT = 8080;
 constexpr int MAX_BACKLOG = 32;
 constexpr int BUFFER_SIZE = 1024;
