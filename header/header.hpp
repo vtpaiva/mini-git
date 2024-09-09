@@ -21,7 +21,6 @@ constexpr const char* LISTEN_ERROR = "Listen";
 constexpr const char* ACCEPT_ERROR = "Accept";
 constexpr const char* CONNECT_ERROR = "Connect";
 constexpr const char* ADRESS_ERROR = "Adress";
-constexpr const char* DEFAULT_MESSAGE = "Default message!";
 
 #endif
 
