@@ -1,40 +1,46 @@
 #include "header.hpp"
 
+constexpr int N_CLIENTS_ACCEPT =  5;
+const char* message = "Hi, client";
+
 int main(int argc, char **argv) {
-    SOCKET serverSocket, clientSocket;
-    int nBind, nListen;
+    SOCKET server_socket, client_socket;
+    int n_bind, n_listen;
     char buffer[BUFFER_SIZE] = {0};
 
     struct sockaddr_in serv_addr;
     socklen_t addr_len = sizeof(serv_addr);
 
-    exitIfError(serverSocket = socket(AF_INET, SOCK_STREAM, 0), 
+    exit_if_error(server_socket = socket(AF_INET, SOCK_STREAM, 0), 
                 SOCKET_CREATION_ERROR);
 
     serv_addr = {sin_family: AF_INET, 
                  sin_port: htons(PORT),
                  sin_addr: {s_addr: INADDR_ANY}};
+
     memset(&serv_addr.sin_zero, '0', 8);
 
-    exitIfError(nBind = bind(serverSocket, (sockaddr*) &serv_addr, sizeof(sockaddr_in)), 
-                BIND_ERROR);
+    exit_if_error(n_bind = bind(server_socket, (sockaddr*) &serv_addr, sizeof(sockaddr_in)), 
+                  BIND_ERROR);
 
-    exitIfError(nListen = listen(serverSocket, MAX_BACKLOG), 
-                LISTEN_ERROR);
+    exit_if_error(n_listen = listen(server_socket, MAX_BACKLOG), 
+                  LISTEN_ERROR);
 
     std::cout << "Servidor esperando por conexões..." << std::endl;
 
-    exitIfError(clientSocket = accept(serverSocket, (struct sockaddr *)&serv_addr, &addr_len),
-                ACCEPT_ERROR);
+    for(int i = 0; i < N_CLIENTS_ACCEPT; i++) {
+        exit_if_error(client_socket = accept(server_socket, nullptr, nullptr),
+                      ACCEPT_ERROR);
 
-    read(clientSocket, buffer, BUFFER_SIZE);
-    std::cout << "Mensagem recebida do cliente: " << buffer << std::endl;
+        read(client_socket, buffer, BUFFER_SIZE);
+        std::cout << "Mensagem recebida do cliente: " << buffer << std::endl;
 
-    send(clientSocket, DEFAULT_MESSAGE, strlen(DEFAULT_MESSAGE), 0);
-    std::cout << "Mensagem enviada para o cliente" << std::endl;
+        send(client_socket, message, strlen(message), 0);
+        std::cout << "Mensagem enviada para o cliente" << std::endl;
+    }
 
-    close(clientSocket);
-    close(serverSocket);
+    close(client_socket);
+    close(server_socket);
 
     return EXIT_SUCCESS;
 }
