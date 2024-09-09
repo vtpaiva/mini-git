@@ -1,4 +1,4 @@
-#include "header.hpp"
+#include "../header/header.hpp"
 
 constexpr int N_CLIENTS_ACCEPT =  5;
 const char* message = "Hi, client";
