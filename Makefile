@@ -3,7 +3,7 @@ all:
 	g++ -o client src/client.cpp
 
 client:
-	g++ -o client src/client.cpp
+	for i in {1..50}; do ./client; done
 
 server:
 	g++ -o server src/server.cpp

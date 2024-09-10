@@ -1,26 +1,24 @@
 #include "../header/header.hpp"
 
-constexpr int MAX_CLIENTS =  5;
-const char* message = "Hi, client";
+void accept_client(SOCKET server_socket, SOCKET client_socket, char server_buffer[], char client_buffer[], int id) {
+    read(client_socket, client_buffer, BUFFER_SIZE);
+    std::cout << "Client message: " << client_buffer;
 
-void accept_client(SOCKET server_socket, SOCKET client_socket, char buffer[]) {
-        exit_if_error(client_socket = accept(server_socket, nullptr, nullptr),
-                      ACCEPT_ERROR);
+    fgets(server_buffer, BUFFER_SIZE, stdin);
 
-        read(client_socket, buffer, BUFFER_SIZE);
-        std::cout << "Client message: " << buffer << std::endl;
-
-        send(client_socket, message, strlen(message), 0);
-        std::cout << "Message sent to client." << std::endl;
+    send(client_socket, server_buffer, BUFFER_SIZE, 0);
+    std::cout << "Message sent to client.\n" << std::endl;
 }
 
 int main(int argc, char **argv) {
     SOCKET server_socket, client_socket;
     int n_bind, n_listen;
-    char buffer[BUFFER_SIZE] = {0};
+    char server_buffer[BUFFER_SIZE] = {0}, client_buffer[BUFFER_SIZE] = {0};
+
+    std::vector<std::thread> threads;
 
     exit_if_error(server_socket = socket(AF_INET, SOCK_STREAM, 0), 
-                SOCKET_CREATION_ERROR);
+                  SOCKET_CREATION_ERROR);
 
     struct sockaddr_in serv_addr = {sin_family: AF_INET, 
                                     sin_port: htons(PORT),
@@ -35,10 +33,16 @@ int main(int argc, char **argv) {
     exit_if_error(n_listen = listen(server_socket, MAX_BACKLOG), 
                   LISTEN_ERROR);
 
-    std::cout << "Waiting for conections..." << std::endl;
+    std::cout << "Waiting for connections..." << std::endl;
 
-    each(MAX_CLIENTS) {
-        accept_client(server_socket, client_socket, buffer);
+    int count = 0;
+
+    while(client_socket = accept(server_socket, nullptr, nullptr)) {
+        threads.push_back(std::thread(accept_client, server_socket, client_socket, server_buffer, client_buffer, count++));
+    }
+
+    for (std::thread &t : threads) {
+        t.join();
     }
 
     close(client_socket);
