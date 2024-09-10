@@ -1,19 +1,36 @@
 #include "../header/header.hpp"
 
-void accept_client(SOCKET server_socket, SOCKET client_socket, char server_buffer[], char client_buffer[], int id) {
-    read(client_socket, client_buffer, BUFFER_SIZE);
-    std::cout << "Client message: " << client_buffer;
+std::string file_path(client &client, char buffer[]) {
+    std::stringstream full_path;
+    full_path << client.name << "/" << std::string(buffer);
 
-    fgets(server_buffer, BUFFER_SIZE, stdin);
+    std::string path_to_file = full_path.str();
 
-    send(client_socket, server_buffer, BUFFER_SIZE, 0);
-    std::cout << "Message sent to client.\n" << std::endl;
+    remove_char(path_to_file, '\0');
+
+    return path_to_file;
+}
+
+void accept_client(SOCKET server_socket, SOCKET client_socket, char buffer[]) {
+    client *new_client = new client(client_socket);
+
+    new_client -> copy_data_to_buffer(buffer);
+
+    send(client_socket, buffer, BUFFER_SIZE, 0);
+    std::cout << "Login sent to client.\n" << std::endl;
+
+    std::filesystem::create_directory(new_client->name);
+
+    recv(client_socket, buffer, BUFFER_SIZE, 0);
+    std::ofstream client_file(file_path(*new_client, buffer));
+
+    client_file.close();
 }
 
 int main(int argc, char **argv) {
     SOCKET server_socket, client_socket;
     int n_bind, n_listen;
-    char server_buffer[BUFFER_SIZE] = {0}, client_buffer[BUFFER_SIZE] = {0};
+    char server_buffer[BUFFER_SIZE] = {0};
 
     std::vector<std::thread> threads;
 
@@ -35,10 +52,8 @@ int main(int argc, char **argv) {
 
     std::cout << "Waiting for connections..." << std::endl;
 
-    int count = 0;
-
     while(client_socket = accept(server_socket, nullptr, nullptr)) {
-        threads.push_back(std::thread(accept_client, server_socket, client_socket, server_buffer, client_buffer, count++));
+        threads.push_back(std::thread(accept_client, server_socket, client_socket, server_buffer));
     }
 
     for (std::thread &t : threads) {

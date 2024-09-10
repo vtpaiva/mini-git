@@ -1,15 +1,24 @@
 #include "../header/header.hpp"
 
+void send_client_input(const char* input, char buffer[], SOCKET socket) {
+    std::cout << "Write your " << input << ": " << std::endl;
+    fgets(buffer, NAME_SIZE, stdin);
+    send(socket, buffer, strlen(buffer), 0);
+}
+
 void send_message(SOCKET network_socket, char client_buffer[], char server_buffer[]) {
-    std::cout << "Write your message:" << std::endl;
+    send_client_input("name", client_buffer, network_socket);
 
-    fgets(client_buffer, BUFFER_SIZE, stdin);
+    send_client_input("email", client_buffer, network_socket);
 
-    write(network_socket, client_buffer, BUFFER_SIZE);
-    std::cout << "Message sent to server." << std::endl;
+    send_client_input("password", client_buffer, network_socket);
 
     read(network_socket, server_buffer, BUFFER_SIZE);
-    std::cout << "Server message: " << server_buffer << std::endl;
+    std::cout << server_buffer << std::endl;
+
+    std::cout << "Write a file name:" << std::endl;
+    fgets(client_buffer, PASSWORD_SIZE, stdin);
+    send(network_socket, client_buffer, strlen(client_buffer), 0);
 }
 
 int main(int argc, char **argv) {
