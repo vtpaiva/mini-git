@@ -9,8 +9,6 @@ void send_client_input(const char* input, const SOCKET &socket, char buffer[]) {
 void get_login(const SOCKET &socket, char buffer[]) {
     send_client_input("name", socket, buffer);
 
-    send_client_input("email", socket, buffer);
-
     send_client_input("password", socket, buffer);
 }
 
