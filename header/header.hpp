@@ -4,6 +4,7 @@
 #include <sys/socket.h>
 #include <arpa/inet.h>
 #include <unistd.h>
+#include <netdb.h>    
 #include <cstring>
 #include <thread>
 #include <vector>
@@ -11,8 +12,6 @@
 
 #ifndef CONTS_H
 #define CONTS_H
-
-#define each(n) for(int i = 0; i < n; i++)
 
 constexpr int PORT = 8080;
 constexpr int MAX_BACKLOG = 32;

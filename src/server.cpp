@@ -1,6 +1,6 @@
 #include "../header/header.hpp"
 
-const std::string REPOS_DIR = "repos";
+const std::string REPOS_DIR = "repos/";
 constexpr const char* LOGIN_MESSAGE = "Login completed!";
 
 int accept_client(SOCKET server_socket, SOCKET client_socket, std::string buffer) {
@@ -9,12 +9,12 @@ int accept_client(SOCKET server_socket, SOCKET client_socket, std::string buffer
     send(client_socket, LOGIN_MESSAGE, BUFFER_SIZE, 0);
     std::cout << "Login: \"" << new_client -> name << "\"!" << std::endl;
 
-    std::filesystem::create_directory(REPOS_DIR + "/" + new_client->name);
+    std::filesystem::create_directory(REPOS_DIR + new_client->name);
 
     int received_bytes = recv(client_socket, &buffer[0], BUFFER_SIZE, 0) - 1;
     buffer.resize(received_bytes);
 
-    std::ofstream client_file(REPOS_DIR + "/" + new_client->name + "/" + buffer);
+    std::ofstream client_file(REPOS_DIR + new_client->name + "/" + buffer);
     client_file.close();
 
     std::cout << "Logout: \"" << new_client -> name << "\"!" << std::endl;
@@ -31,12 +31,12 @@ void handle_connect(SOCKET server_socket, SOCKET client_socket, std::string buff
 int handle_input() {
     std::string input(COMMAND_SIZE, '\0');
 
-    while(true) {
-        std::getline(std::cin, input);
-
+    while(std::getline(std::cin, input)) {
         if (input == "exit")
             return EXIT_SUCCESS;            
     }
+
+    return EXIT_FAILURE;
 }
 
 int main(int argc, char **argv) {
