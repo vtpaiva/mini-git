@@ -31,27 +31,42 @@ void get_login(const SOCKET &socket, char buffer[]) {
     send_client_input("password", socket, buffer);
 }
 
-void send_message(const SOCKET &network_socket, char client_buffer[], char server_buffer[]) {
-    get_login(network_socket, client_buffer);
+void send_message(const SOCKET &network_socket, std::string &client_buffer, std::string &server_buffer) {
+    comm_line command = comm_line();
+    get_login(network_socket, &client_buffer[0]);
 
-    recv(network_socket, server_buffer, BUFFER_SIZE, 0);
+    recv(network_socket, &server_buffer[0], BUFFER_SIZE, 0);
     std::cout << server_buffer << std::endl;
 
-    std::cout << "Write a file name:" << std::endl;
-    fgets(client_buffer, PASSWORD_SIZE, stdin);
-    send(network_socket, client_buffer, strlen(client_buffer), 0);
+    std::cout << "\nWrite your command: (create, delete or edit 'file_name')" << std::endl;
+
+    while (std::getline(std::cin, client_buffer)) {
+        send(network_socket, &client_buffer[0], BUFFER_SIZE, 0);
+
+        if (client_buffer == "exit") 
+            return;
+
+        resize_erase(server_buffer, BUFFER_SIZE);
+
+        recv(network_socket, &server_buffer[0], BUFFER_SIZE, 0);
+        
+        resize_till_null(server_buffer);
+
+        if(sscanf(server_buffer.c_str(), "%s %s", &command.comm[0], &command.file[0]) == 2) {
+            if(std::filesystem::exists(command.file)) {
+                system(server_buffer.c_str());
+            }
+        }
+
+        fill_string(client_buffer);
+    }
 }
 
 int main(int argc, char **argv) {
     SOCKET network_socket = 0;
-    char server_buffer[BUFFER_SIZE] = {0}, client_buffer[BUFFER_SIZE] = {0};
-
-    std::string hostname(BUFFER_SIZE, '\0');
+    std::string server_buffer(BUFFER_SIZE, '\0'), client_buffer(BUFFER_SIZE, '\0');
 
     struct sockaddr_in serv_addr;
-
-    exit_if_error(gethostname(&hostname[0], 1023),
-                  "hostname");
 
     exit_if_error(network_socket = socket(AF_INET, SOCK_STREAM, 0), 
                   SOCKET_CREATION_ERROR);
@@ -70,5 +85,5 @@ int main(int argc, char **argv) {
 
     close(network_socket);
 
-    return EXIT_SUCCESS;
+    exit(EXIT_SUCCESS);
 }

@@ -19,7 +19,7 @@ constexpr int BUFFER_SIZE = 1024;
 constexpr int NAME_SIZE = 16;
 constexpr int PASSWORD_SIZE = 32;
 constexpr int COMMAND_SIZE = 8;
-constexpr int FILE_NAME_SIZE = 16;
+constexpr int FILE_NAME_SIZE = 32;
 constexpr int CLIENT_SIZE = sizeof(char) + NAME_SIZE + PASSWORD_SIZE;
 
 constexpr const char VALID = '1';
@@ -37,6 +37,10 @@ constexpr const char* RECV_ERROR = "Message receiving";
 
 typedef int SOCKET;
 
+#define fill_string(st) (std::fill(st.begin(), st.end(), '\0'))
+#define resize_erase(st, size) (st.resize(size), fill_string(st))
+#define resize_till_null(st) (st.resize(st.find('\0')))
+ 
 // Returns error message if value means error.
 void exit_if_error(const int value, const std::string err = "code") {
     if(value < 0) {
@@ -56,18 +60,6 @@ std::string filled_string(std::string &st) {
 
     return tmp;
 }
-
-class header {
-    public:
-
-        char status;
-        int total, reg, rem, reg_size;
-
-        header(int total = 0, int reg = 0, int rem = 0) : 
-            total(total), reg(reg), rem(rem), status(VALID) {}
-
-    private:
-};
 
 class client {
     public:
@@ -94,20 +86,29 @@ class client {
     private:
 };
 
-class data_file {
+class comm_line {
     public:
 
-        std::fstream file;
-        header file_header;
+        std::string comm, file;
 
-        data_file(std::string file_name) : file(file_name, std::ios::in | std::ios::out | std::ios::trunc) {
-            std::cout << ((this -> file) ? "O arquivo já existe" : "O arquivo não existia") << std::endl;
+        comm_line() : comm(COMMAND_SIZE, '\0'), file(FILE_NAME_SIZE, '\0') {}
+
+        comm_line(std::string command, std::string file_name) : comm(command), file(file_name) {}
+
+        void resize_fields() {
+            resize_till_null(this -> comm), resize_till_null(this -> file);
         }
 
-        ~data_file() {
-            if(file.is_open()) {
-                file.close();
-            }
+        void clean_fields() {
+            this -> comm.resize(COMMAND_SIZE);
+            fill_string(this -> comm);
+
+            this -> file.resize(FILE_NAME_SIZE);
+            fill_string(this -> file);
+        }
+
+        std::string to_comm() {
+            return std::string(this -> comm + " " + this -> file);
         }
 
     private:

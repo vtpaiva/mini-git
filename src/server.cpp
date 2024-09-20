@@ -1,21 +1,47 @@
 #include "../header/header.hpp"
 
 const std::string REPOS_DIR = "repos/";
-constexpr const char* LOGIN_MESSAGE = "Login completed!";
+const std::string LOGIN_MESSAGE = "Login completed!";
+
+void handle_command(comm_line line, client curr_client, SOCKET client_socket) {
+    std::string filename = REPOS_DIR + curr_client.name + "/" + line.file, message("none");
+
+    if(line.comm == "create") {
+        std::ofstream client_file(filename);
+        client_file.close();
+    } else if(line.comm == "delete") {
+        std::remove(filename.c_str());
+    } else if(line.comm == "edit") {
+        message = "nano " + filename;
+    }
+
+    send(client_socket, &message[0], size(message), 0);
+}
 
 int accept_client(SOCKET server_socket, SOCKET client_socket, std::string buffer) {
+    int received_bytes;
+    comm_line comm = comm_line();
     client *new_client = new client(client_socket);
 
-    send(client_socket, LOGIN_MESSAGE, BUFFER_SIZE, 0);
+    send(client_socket, &LOGIN_MESSAGE[0], BUFFER_SIZE, 0);
     std::cout << "Login: \"" << new_client -> name << "\"!" << std::endl;
 
     std::filesystem::create_directory(REPOS_DIR + new_client->name);
 
-    int received_bytes = recv(client_socket, &buffer[0], BUFFER_SIZE, 0) - 1;
-    buffer.resize(received_bytes);
+    while((received_bytes = recv(client_socket, &buffer[0], BUFFER_SIZE, 0)) > -1) {
+        buffer.resize(buffer.find('\0'));
 
-    std::ofstream client_file(REPOS_DIR + new_client->name + "/" + buffer);
-    client_file.close();
+        if(buffer == "exit") 
+            break;
+
+        sscanf(buffer.c_str(), "%s %s", &comm.comm[0], &comm.file[0]);
+
+        comm.resize_fields();
+        handle_command(comm, *new_client, client_socket);
+        comm.clean_fields();
+
+        buffer.resize(BUFFER_SIZE);
+    }
 
     std::cout << "Logout: \"" << new_client -> name << "\"!" << std::endl;
 
@@ -28,15 +54,13 @@ void handle_connect(SOCKET server_socket, SOCKET client_socket, std::string buff
     }
 }
 
-int handle_input() {
+void handle_input() {
     std::string input(COMMAND_SIZE, '\0');
 
     while(std::getline(std::cin, input)) {
         if (input == "exit")
-            return EXIT_SUCCESS;            
+            return;            
     }
-
-    return EXIT_FAILURE;
 }
 
 int main(int argc, char **argv) {
