@@ -1,14 +1,16 @@
 #include "../header/header.hpp"
 
+const std::string DIR = "local/";
+
 std::string get_ip() {
     std::string hostname(BUFFER_SIZE, '\0');
-    exit_if_error(gethostname(&hostname[0], 1023), "hostname");
+    exit_if_error(gethostname(hostname.data(), 1023), "hostname");
 
     struct addrinfo hints = {0}, *res;
 
     hints = {ai_family: AF_INET, ai_socktype: SOCK_STREAM};
 
-    exit_if_error(getaddrinfo(&hostname[0], NULL, &hints, &res), "adress info");
+    exit_if_error(getaddrinfo(hostname.data(), NULL, &hints, &res), "adress info");
 
     char ip_str[INET_ADDRSTRLEN];
     struct sockaddr_in *ipv4 = (struct sockaddr_in*) res->ai_addr;
@@ -17,6 +19,35 @@ std::string get_ip() {
 
     freeaddrinfo(res);
     return std::string(ip_str);
+}
+
+void send_file(SOCKET network_socket, const std::string& file_name) {
+    int bytes_sent, file_size;
+    std::ifstream file(DIR + file_name, std::ios::binary | std::ios::ate);
+
+    if (!file) {
+        perror("File not found");
+        return;
+    }
+
+    file_size = htonl(file.tellg());
+    file.seekg(0, std::ios::beg);
+
+    send(network_socket, &file_size, sizeof(file_size), 0);
+
+    std::string buffer(BUFFER_SIZE, '\0'); 
+
+    while(file.read(buffer.data(), buffer.size())) {
+        if ((bytes_sent = send(network_socket, buffer.data(), BUFFER_SIZE, 0)) == -1) 
+            return perror("Erro ao enviar últimos dados");
+    }
+
+    if(file.gcount() > 0) {
+        if ((bytes_sent = send(network_socket, buffer.data(), file.gcount(), 0)) == -1) 
+            return perror("Erro ao enviar últimos dados");
+    }
+
+    file.close();
 }
 
 void send_client_input(const char* input, const SOCKET &socket, char buffer[]) {
@@ -30,35 +61,34 @@ void get_login(const SOCKET &socket, char buffer[]) {
 
     send_client_input("password", socket, buffer);
 }
+inline void handle_command(SOCKET socket, comm_line command) {
+    if(command.comm == "push") {
+        send_file(socket, command.arg);
+    }
+}
 
 void send_message(const SOCKET &network_socket, std::string &client_buffer, std::string &server_buffer) {
     comm_line command = comm_line();
-    get_login(network_socket, &client_buffer[0]);
+    get_login(network_socket, client_buffer.data());
 
-    recv(network_socket, &server_buffer[0], BUFFER_SIZE, 0);
+    recv(network_socket, server_buffer.data(), BUFFER_SIZE, 0);
     std::cout << server_buffer << std::endl;
 
-    std::cout << "\nWrite your command: (create, delete or edit 'file_name')" << std::endl;
+    std::cout << "\nWrite your command: (create, or delete 'file_name')" << std::endl;
 
     while (std::getline(std::cin, client_buffer)) {
-        send(network_socket, &client_buffer[0], BUFFER_SIZE, 0);
+        send(network_socket, client_buffer.data(), BUFFER_SIZE, 0);
 
-        if (client_buffer == "exit") 
+        if(client_buffer == "exit") 
             return;
 
-        resize_erase(server_buffer, BUFFER_SIZE);
+        command.clean_fields();
+        command.from_line(client_buffer);
+        command.resize_fields();
 
-        recv(network_socket, &server_buffer[0], BUFFER_SIZE, 0);
-        
-        resize_till_null(server_buffer);
+        handle_command(network_socket, command);
 
-        if(sscanf(server_buffer.c_str(), "%s %s", &command.comm[0], &command.file[0]) == 2) {
-            if(std::filesystem::exists(command.file)) {
-                system(server_buffer.c_str());
-            }
-        }
-
-        fill_string(client_buffer);
+        command.clean_fields();
     }
 }
 

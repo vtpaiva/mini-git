@@ -3,44 +3,80 @@
 const std::string REPOS_DIR = "repos/";
 const std::string LOGIN_MESSAGE = "Login completed!";
 
-void handle_command(comm_line line, client curr_client, SOCKET client_socket) {
-    std::string filename = REPOS_DIR + curr_client.name + "/" + line.file, message("none");
+namespace fs = std::filesystem;
 
-    if(line.comm == "create") {
-        std::ofstream client_file(filename);
-        client_file.close();
-    } else if(line.comm == "delete") {
-        std::remove(filename.c_str());
-    } else if(line.comm == "edit") {
-        message = "nano " + filename;
+void receive_file(SOCKET client_socket, const std::string& file_name) {
+    int bytesReceived, file_size;
+    std::ofstream file(file_name, std::ios::binary);
+
+    if (!file) 
+        return perror("Could not open file");
+
+    read(client_socket, &file_size, sizeof(file_size));
+
+    std::string buffer(BUFFER_SIZE, '\0');
+
+    for (int total = 0; total < bytesReceived; total += bytesReceived) {
+        bytesReceived = recv(client_socket, buffer.data(), BUFFER_SIZE, 0);
+
+        file.write(buffer.data(), bytesReceived);
     }
 
-    send(client_socket, &message[0], size(message), 0);
+    if (bytesReceived == -1) 
+        perror("Erro ao receber dados");
+
+    file.close();
+}
+
+void handle_command(comm_line line, client curr_client, SOCKET client_socket) {
+    std::string dir_path = REPOS_DIR + curr_client.name;
+    std::string filename = dir_path + "/" + line.arg;
+
+    if (line.comm == "create") {
+        std::ofstream client_file(filename);
+
+        if (!client_file) {
+            std::cerr << "File create error: " << strerror(errno) << std::endl;
+            return;
+        }
+
+        std::cout << "File created: " << filename << std::endl;
+        client_file.close();
+    } else if (line.comm == "delete") {
+        if (fs::exists(filename)) {
+            if (!fs::remove(filename)) {
+                std::cerr << "Removing file error: " << strerror(errno) << std::endl;
+            } else {
+                std::cout << "File removed: " << filename << std::endl;
+            }
+        } else {
+            std::cerr << "File not found: " << filename << std::endl;
+        }
+    } else if(line.comm == "push") {
+        receive_file(client_socket, filename);
+    }
 }
 
 int accept_client(SOCKET server_socket, SOCKET client_socket, std::string buffer) {
-    int received_bytes;
-    comm_line comm = comm_line();
+    comm_line command = comm_line();
     client *new_client = new client(client_socket);
 
-    send(client_socket, &LOGIN_MESSAGE[0], BUFFER_SIZE, 0);
+    send(client_socket, LOGIN_MESSAGE.data(), BUFFER_SIZE, 0);
     std::cout << "Login: \"" << new_client -> name << "\"!" << std::endl;
 
     std::filesystem::create_directory(REPOS_DIR + new_client->name);
 
-    while((received_bytes = recv(client_socket, &buffer[0], BUFFER_SIZE, 0)) > -1) {
-        buffer.resize(buffer.find('\0'));
+    for(int received_bytes; (received_bytes = recv(client_socket, buffer.data(), BUFFER_SIZE, 0)) > -1; buffer.resize(BUFFER_SIZE)) {
+        resize_till_null(buffer);
+        command.clean_fields();
 
         if(buffer == "exit") 
             break;
 
-        sscanf(buffer.c_str(), "%s %s", &comm.comm[0], &comm.file[0]);
+        command.from_line(buffer);
+        command.resize_fields();
 
-        comm.resize_fields();
-        handle_command(comm, *new_client, client_socket);
-        comm.clean_fields();
-
-        buffer.resize(BUFFER_SIZE);
+        handle_command(command, *new_client, client_socket);
     }
 
     std::cout << "Logout: \"" << new_client -> name << "\"!" << std::endl;

@@ -1,3 +1,6 @@
+#ifndef CONTS_H
+#define CONTS_H
+
 #include <iostream>
 #include <fstream>  
 #include <filesystem>
@@ -10,18 +13,16 @@
 #include <vector>
 #include <regex>
 
-#ifndef CONTS_H
-#define CONTS_H
-
-constexpr int PORT = 8080;
+constexpr int PORT = 8084;
 constexpr int MAX_BACKLOG = 32;
 constexpr int BUFFER_SIZE = 1024;
 constexpr int NAME_SIZE = 16;
 constexpr int PASSWORD_SIZE = 32;
 constexpr int COMMAND_SIZE = 8;
-constexpr int FILE_NAME_SIZE = 32;
+constexpr int ARG_SIZE = 32;
 constexpr int CLIENT_SIZE = sizeof(char) + NAME_SIZE + PASSWORD_SIZE;
 
+const std::string END_TRANS = "cavalo";
 constexpr const char VALID = '1';
 constexpr const char INVALID = '0';
 constexpr const char FILL_CHAR = '$';
@@ -33,13 +34,11 @@ constexpr const char* CONNECT_ERROR = "Connect";
 constexpr const char* ADRESS_ERROR = "Adress";
 constexpr const char* RECV_ERROR = "Message receiving";
 
-#endif
 
 typedef int SOCKET;
 
 #define fill_string(st) (std::fill(st.begin(), st.end(), '\0'))
 #define resize_erase(st, size) (st.resize(size), fill_string(st))
-#define resize_till_null(st) (st.resize(st.find('\0')))
  
 // Returns error message if value means error.
 void exit_if_error(const int value, const std::string err = "code") {
@@ -61,6 +60,13 @@ std::string filled_string(std::string &st) {
     return tmp;
 }
 
+inline void resize_till_null(std::string &st) {
+    auto pos = st.find('\0');
+
+    if (pos != std::string::npos)
+        st.resize(pos);
+}
+
 class client {
     public:
 
@@ -70,10 +76,10 @@ class client {
         client(SOCKET &client_socket) : name(std::string(NAME_SIZE,0)), password(PASSWORD_SIZE, 0), status(INVALID){
             int received_bytes;
 
-            received_bytes = recv(client_socket, &name[0], NAME_SIZE, 0) - 1;
+            received_bytes = recv(client_socket, name.data(), NAME_SIZE, 0) - 1;
             this -> name.resize(received_bytes);
 
-            received_bytes = recv(client_socket, &password[0], PASSWORD_SIZE, 0) - 1;
+            received_bytes = recv(client_socket, password.data(), PASSWORD_SIZE, 0) - 1;
             this -> password.resize(received_bytes);
 
             status = VALID;
@@ -89,27 +95,37 @@ class client {
 class comm_line {
     public:
 
-        std::string comm, file;
+        std::string comm, arg;
 
-        comm_line() : comm(COMMAND_SIZE, '\0'), file(FILE_NAME_SIZE, '\0') {}
+        comm_line() : comm(COMMAND_SIZE, '\0') {}
 
-        comm_line(std::string command, std::string file_name) : comm(command), file(file_name) {}
+        comm_line(std::string command, std::string arg) : comm(command), arg(arg) {}
 
         void resize_fields() {
-            resize_till_null(this -> comm), resize_till_null(this -> file);
+            resize_till_null(this -> comm);
+            resize_till_null(this -> arg);
         }
 
         void clean_fields() {
             this -> comm.resize(COMMAND_SIZE);
             fill_string(this -> comm);
 
-            this -> file.resize(FILE_NAME_SIZE);
-            fill_string(this -> file);
+            this -> arg.resize(ARG_SIZE);
+            fill_string(this -> arg);
         }
 
-        std::string to_comm() {
-            return std::string(this -> comm + " " + this -> file);
+        void to_line(std::string &buffer) {
+            std::snprintf(buffer.data(), BUFFER_SIZE, "%s %s\0", this->comm.c_str(), this->arg.c_str());
+
+            buffer.resize(buffer.find('\0'));
+        }
+
+        void from_line(std::string &buffer, int argc = 2) {
+            if(sscanf(buffer.c_str(), "%s %s", this -> comm.data(), this -> arg.data()) != argc) {
+                std::cout << "Wrong number of arguments" << std::endl;
+            }
         }
 
     private:
 };
+#endif

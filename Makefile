@@ -3,10 +3,12 @@ all:
 	g++ -o client src/client.cpp
 
 client:
-	for i in {1..50}; do ./client; done
+	g++ -o client src/client.cpp
+	./client
 
 server:
 	g++ -o server src/server.cpp
+	./server
 
 clean:
 	rm -f server client
