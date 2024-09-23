@@ -21,7 +21,7 @@ constexpr int BUFFER_SIZE = 1024;
 constexpr int NAME_SIZE = 16;
 constexpr int PASSWORD_SIZE = 32;
 constexpr int COMMAND_SIZE = 8;
-constexpr int ARG_SIZE = 32;
+constexpr int ARG_SIZE = 64;
 constexpr int CLIENT_SIZE = sizeof(char) + NAME_SIZE + PASSWORD_SIZE;
 
 const std::string LOCAL_DIR = "local/";
@@ -190,7 +190,9 @@ class comm_line {
         }
 
         void from_line(std::string &buffer, int argc = 2) {
-            if(sscanf(buffer.c_str(), "%s %s", this -> comm.data(), this -> arg.data()) != argc) {
+            const char *model = (buffer.find('\"') == std::string::npos) ? "%s %s" : "%s \"%[^\"]\"";
+
+            if(sscanf(buffer.c_str(), model, this -> comm.data(), this -> arg.data()) != argc) {
                 std::cout << "Wrong number of arguments" << std::endl;
             }
         }
