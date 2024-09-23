@@ -2,51 +2,41 @@
 
 const std::string LOGIN_MESSAGE = "Login completed!";
 
-static inline void handle_command(comm_line line, client curr_client, SOCKET client_socket) {
-    std::string dir_path = REPOS_DIR + curr_client.name;
-    std::string filename = dir_path + "/" + line.arg;
+void add_file(std::string filename) {
+    std::ofstream client_file(filename);
 
-    if (line.comm == "create") {
-        std::ofstream client_file(filename);
-
-        if (!client_file) {
-            std::cerr << "File create error: " << strerror(errno) << std::endl;
-            return;
-        }
-
-        std::cout << "File created: " << filename << std::endl;
-        client_file.close();
-    } else if (line.comm == "delete") {
-        if (fs::exists(filename)) {
-            if (!fs::remove(filename)) {
-                std::cerr << "Removing file error: " << strerror(errno) << std::endl;
-            } else {
-                std::cout << "File removed: " << filename << std::endl;
-            }
-        } else {
-            std::cerr << "File not found: " << filename << std::endl;
-        }
-    } else if(line.comm == "push") {
-        int number_files;
-        std::string buffer(BUFFER_SIZE, '\0');
-
-        read(client_socket, &number_files, sizeof(number_files));
-
-        number_files = ntohl(number_files);
-
-        for_each(number_files) {
-            recv(client_socket, buffer.data(), BUFFER_SIZE, 0);
-
-            send(client_socket, &RECEIVED, sizeof(char), 0);
-
-            resize_till_null(buffer);
-
-            receive_file(client_socket, REPOS_DIR + "/" + curr_client.name + "/" + buffer);
-
-            buffer.resize(BUFFER_SIZE);
-            fill_string(buffer);
-        }
+    if (!client_file) {
+        std::cerr << "File create error: " << strerror(errno) << std::endl;
+        return;
     }
+
+    std::cout << "File created: " << filename << std::endl;
+    client_file.close();
+}
+
+void remove_file(std::string filename) {
+    if (fs::exists(filename)) {
+        if (!fs::remove(filename)) {
+            std::cerr << "Removing file error: " << strerror(errno) << std::endl;
+        } else {
+            std::cout << "File removed: " << filename << std::endl;
+        }
+    } else {
+        std::cerr << "File not found: " << filename << std::endl;
+    }
+}
+
+static inline void handle_command(comm_line command, client curr_client, SOCKET socket) {
+    std::string filename = REPOS_DIR + curr_client.name + "/" + command.arg;
+
+    if (command.comm == "create") 
+        add_file(filename);
+    else if (command.comm == "delete") 
+        remove_file(filename);
+    else if(command.comm == "push") 
+        receive_files(socket, REPOS_DIR + curr_client.name + + "/");
+    else if(command.comm == "pull")
+        send_files(socket, REPOS_DIR + curr_client.name + "/", command);
 }
 
 int accept_client(SOCKET server_socket, SOCKET client_socket, std::string buffer) {

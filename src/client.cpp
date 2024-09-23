@@ -31,60 +31,14 @@ void get_login(const SOCKET &socket, char buffer[]) {
     send_client_input("password", socket, buffer);
 }
 
-ssize_t send_all(int socket, const void* buffer, size_t length) {
-    ssize_t total_sent = 0;
-    ssize_t sent;
-    const char* ptr = (const char*) buffer;
-
-    while (total_sent < length) {
-        sent = send(socket, ptr + total_sent, length - total_sent, 0);
-        if (sent == -1) {
-            return -1;  // erro no envio
-        }
-        total_sent += sent;
-    }
-
-    return total_sent;
-}
-
 static inline void handle_command(SOCKET socket, comm_line command) {
-    if(command.comm == "push") {
-        char confirm;   
-        int number_files = 0;
-        std::string curr_file;
-
-        if(fs::is_directory(LOCAL_DIR + command.arg)) {
-
-            for (const auto& entry : fs::directory_iterator(LOCAL_DIR + command.arg))
-               number_files++;
-
-            number_files = htonl(number_files);
-
-            send(socket, &number_files, sizeof(number_files), 0);
-
-            for (const auto& entry : fs::directory_iterator(LOCAL_DIR + command.arg)) {
-                curr_file = entry.path().filename().string();
-
-                send(socket, curr_file.data(), sizeof(curr_file.data()), 0);
-                recv(socket, &confirm, sizeof(confirm), 0);
-
-                if(confirm)
-                    send_file(socket, LOCAL_DIR + command.arg + "/" + entry.path().filename().string());
-            }
-        } else {
-                number_files = htonl(1);
-                send(socket, &number_files, sizeof(int), 0);
-
-                send(socket, command.arg.data(), size(command.arg), 0);
-                recv(socket, &confirm, sizeof(confirm), 0);
-
-                if(confirm)
-                    send_file(socket, LOCAL_DIR + command.arg);
-        }
-    }
+    if(command.comm == "push")
+        send_files(socket, LOCAL_DIR, command);
+    else if(command.comm == "pull")
+        receive_files(socket, LOCAL_DIR);
 }
 
-void send_message(const SOCKET &network_socket, std::string &client_buffer, std::string &server_buffer) {
+void send_messages(const SOCKET &network_socket, std::string &client_buffer, std::string &server_buffer) {
     comm_line command = comm_line();
     get_login(network_socket, client_buffer.data());
 
@@ -104,8 +58,6 @@ void send_message(const SOCKET &network_socket, std::string &client_buffer, std:
         command.resize_fields();
 
         handle_command(network_socket, command);
-
-        command.clean_fields();
     }
 }
 
@@ -128,7 +80,7 @@ int main(int argc, char **argv) {
     exit_if_error(connect(network_socket, (struct sockaddr *)&serv_addr, sizeof(serv_addr)),
                   CONNECT_ERROR);
 
-    send_message(network_socket, client_buffer, server_buffer);
+    send_messages(network_socket, client_buffer, server_buffer);
 
     close(network_socket);
 

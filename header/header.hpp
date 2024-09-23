@@ -197,4 +197,61 @@ class comm_line {
 
     private:
 };
+
+void send_files(SOCKET socket, std::string dir_path, comm_line command) {
+    char confirm;   
+        int number_files = 0;
+        std::string curr_file;
+
+        if(fs::is_directory(dir_path + command.arg)) {
+            for (const auto& entry : fs::directory_iterator(dir_path + command.arg))
+                number_files++;
+
+            number_files = htonl(number_files);
+
+            send(socket, &number_files, sizeof(number_files), 0);
+
+            for (const auto& entry : fs::directory_iterator(dir_path + command.arg)) {
+                curr_file = entry.path().filename().string();
+
+                send(socket, curr_file.data(), sizeof(curr_file.data()), 0);
+                recv(socket, &confirm, sizeof(confirm), 0);
+
+                if(confirm)
+                    send_file(socket, dir_path + command.arg + "/" + entry.path().filename().string());
+            }
+        } else {
+            number_files = htonl(1);
+            send(socket, &number_files, sizeof(int), 0);
+
+            send(socket, command.arg.data(), size(command.arg), 0);
+            recv(socket, &confirm, sizeof(confirm), 0);
+
+            if(confirm)
+                send_file(socket, dir_path + command.arg);
+        }
+}
+
+void receive_files(SOCKET socket, std::string dir_path) {
+    int number_files;
+    std::string buffer(BUFFER_SIZE, '\0');
+
+    read(socket, &number_files, sizeof(number_files));
+
+    number_files = ntohl(number_files);
+
+    for_each(number_files) {
+        recv(socket, buffer.data(), BUFFER_SIZE, 0);
+
+        send(socket, &RECEIVED, sizeof(char), 0);
+
+        resize_till_null(buffer);
+
+        receive_file(socket, dir_path + buffer);
+
+        buffer.resize(BUFFER_SIZE);
+        fill_string(buffer);
+    }
+}
+
 #endif
