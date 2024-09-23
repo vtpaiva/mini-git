@@ -26,6 +26,28 @@ void remove_file(std::string filename) {
     }
 }
 
+void execute_comm(SOCKET socket, client curr_client, comm_line command) {
+    char flag = '1';
+    std::string buffer(BUFFER_SIZE, '\0');
+
+    FILE* pipe = popen((command.arg + " -C " + REPOS_DIR + curr_client.name).c_str(), "r");
+
+    if (!pipe)
+        return perror("Command error");
+
+    while (fgets(buffer.data(), BUFFER_SIZE, pipe)) {
+        send(socket, buffer.data(), BUFFER_SIZE, 0);
+        recv(socket, &flag, sizeof(flag), 0);
+
+        if(!flag)
+            return;
+    }
+
+    pclose(pipe);
+
+    send(socket, &"EOF", strlen("EOF"), 0);
+}
+
 static inline void handle_command(comm_line command, client curr_client, SOCKET socket) {
     std::string filename = REPOS_DIR + curr_client.name + "/" + command.arg;
 
@@ -37,6 +59,8 @@ static inline void handle_command(comm_line command, client curr_client, SOCKET 
         receive_files(socket, REPOS_DIR + curr_client.name + + "/");
     else if(command.comm == "pull")
         send_files(socket, REPOS_DIR + curr_client.name + "/", command);
+    else if(command.comm == "comm" && command.arg == "ls")
+        execute_comm(socket, curr_client, command);
 }
 
 int accept_client(SOCKET server_socket, SOCKET client_socket, std::string buffer) {

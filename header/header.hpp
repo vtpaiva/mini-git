@@ -88,7 +88,6 @@ void receive_file(SOCKET socket, const std::string& file_name) {
 
     for (int total = 0; total < file_size; total += bytesReceived) {
         bytesReceived = recv(socket, buffer.data(), BUFFER_SIZE, 0);
-
         send(socket, &RECEIVED, sizeof(RECEIVED), 0);
 
         file.write(buffer.data(), bytesReceived);
@@ -244,7 +243,6 @@ void receive_files(SOCKET socket, std::string dir_path) {
 
     for_each(number_files) {
         recv(socket, buffer.data(), BUFFER_SIZE, 0);
-
         send(socket, &RECEIVED, sizeof(char), 0);
 
         resize_till_null(buffer);

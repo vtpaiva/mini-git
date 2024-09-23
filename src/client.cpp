@@ -31,11 +31,32 @@ void get_login(const SOCKET &socket, char buffer[]) {
     send_client_input("password", socket, buffer);
 }
 
+void comm_output(SOCKET socket) {
+    ssize_t bytes_received;
+    std::string buffer(BUFFER_SIZE, '\0');
+
+    while ((bytes_received = recv(socket, buffer.data(), BUFFER_SIZE - 1, 0)) > 0) {
+        resize_till_null(buffer);
+
+        send(socket, &RECEIVED, sizeof(RECEIVED), 0);
+
+        if (!std::strcmp(buffer.c_str(), "EOF"))
+            break;
+
+        std::cout << buffer;
+
+        resize_till_null(buffer);
+        fill_string(buffer);
+    }
+}
+
 static inline void handle_command(SOCKET socket, comm_line command) {
     if(command.comm == "push")
         send_files(socket, LOCAL_DIR, command);
     else if(command.comm == "pull")
         receive_files(socket, LOCAL_DIR);
+    else if(command.comm == "comm" && command.arg == "ls")
+        comm_output(socket);
 }
 
 void send_messages(const SOCKET &network_socket, std::string &client_buffer, std::string &server_buffer) {
