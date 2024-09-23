@@ -13,6 +13,8 @@
 #include <vector>
 #include <regex>
 
+namespace fs = std::filesystem;
+
 constexpr int PORT = 8084;
 constexpr int MAX_BACKLOG = 32;
 constexpr int BUFFER_SIZE = 1024;
@@ -22,7 +24,10 @@ constexpr int COMMAND_SIZE = 8;
 constexpr int ARG_SIZE = 32;
 constexpr int CLIENT_SIZE = sizeof(char) + NAME_SIZE + PASSWORD_SIZE;
 
-const std::string END_TRANS = "cavalo";
+const std::string LOCAL_DIR = "local/";
+const std::string REPOS_DIR = "repos/";
+constexpr const char RECEIVED = '1';
+constexpr const char NOT_RECEIVED = '\0';
 constexpr const char VALID = '1';
 constexpr const char INVALID = '0';
 constexpr const char FILL_CHAR = '$';
@@ -39,7 +44,8 @@ typedef int SOCKET;
 
 #define fill_string(st) (std::fill(st.begin(), st.end(), '\0'))
 #define resize_erase(st, size) (st.resize(size), fill_string(st))
- 
+#define for_each(n) for(int It = 0; It < n; It++)
+
 // Returns error message if value means error.
 void exit_if_error(const int value, const std::string err = "code") {
     if(value < 0) {
@@ -65,6 +71,69 @@ inline void resize_till_null(std::string &st) {
 
     if (pos != std::string::npos)
         st.resize(pos);
+}
+
+void receive_file(SOCKET socket, const std::string& file_name) {
+    int bytesReceived, file_size;
+    std::ofstream file(file_name, std::ios::binary);
+
+    if (!file) 
+        return perror("Could not open file");
+
+    read(socket, &file_size, sizeof(file_size));
+
+    file_size = ntohl(file_size);
+
+    std::string buffer(BUFFER_SIZE, '\0');
+
+    for (int total = 0; total < file_size; total += bytesReceived) {
+        bytesReceived = recv(socket, buffer.data(), BUFFER_SIZE, 0);
+
+        send(socket, &RECEIVED, sizeof(RECEIVED), 0);
+
+        file.write(buffer.data(), bytesReceived);
+    }
+
+    if (bytesReceived == -1) {
+        send(socket, &NOT_RECEIVED, sizeof(NOT_RECEIVED), 0);
+
+        perror("Erro ao receber dados");
+    }
+
+
+    file.close();
+}
+
+void send_file(SOCKET socket, const std::string& file_name) {
+    char confirm = '1';
+    int bytes_sent, file_size;
+    std::ifstream file(file_name, std::ios::binary | std::ios::ate);
+
+    if (!file)
+        return perror("File not found");
+
+    file_size = htonl(file.tellg());
+    file.seekg(0, std::ios::beg);
+
+    send(socket, &file_size, sizeof(file_size), 0);
+
+    std::string buffer(BUFFER_SIZE, '\0'); 
+
+    while(file.read(buffer.data(), buffer.size())) {
+        if ((bytes_sent = send(socket, buffer.data(), BUFFER_SIZE, 0)) == -1 || !confirm) 
+            return perror("Erro ao enviar últimos dados");
+
+        recv(socket, &confirm, sizeof(confirm), 0);
+    }
+
+    if(file.gcount() > 0) {
+        if ((bytes_sent = send(socket, buffer.data(), file.gcount(), 0)) == -1 || !confirm) 
+            return perror("Erro ao enviar últimos dados");
+
+        recv(socket, &confirm, sizeof(confirm), 0);
+    }
+
+    file.close();
 }
 
 class client {

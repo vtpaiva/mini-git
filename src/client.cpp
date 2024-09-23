@@ -1,7 +1,5 @@
 #include "../header/header.hpp"
 
-const std::string DIR = "local/";
-
 std::string get_ip() {
     std::string hostname(BUFFER_SIZE, '\0');
     exit_if_error(gethostname(hostname.data(), 1023), "hostname");
@@ -21,35 +19,6 @@ std::string get_ip() {
     return std::string(ip_str);
 }
 
-void send_file(SOCKET network_socket, const std::string& file_name) {
-    int bytes_sent, file_size;
-    std::ifstream file(DIR + file_name, std::ios::binary | std::ios::ate);
-
-    if (!file) {
-        perror("File not found");
-        return;
-    }
-
-    file_size = htonl(file.tellg());
-    file.seekg(0, std::ios::beg);
-
-    send(network_socket, &file_size, sizeof(file_size), 0);
-
-    std::string buffer(BUFFER_SIZE, '\0'); 
-
-    while(file.read(buffer.data(), buffer.size())) {
-        if ((bytes_sent = send(network_socket, buffer.data(), BUFFER_SIZE, 0)) == -1) 
-            return perror("Erro ao enviar últimos dados");
-    }
-
-    if(file.gcount() > 0) {
-        if ((bytes_sent = send(network_socket, buffer.data(), file.gcount(), 0)) == -1) 
-            return perror("Erro ao enviar últimos dados");
-    }
-
-    file.close();
-}
-
 void send_client_input(const char* input, const SOCKET &socket, char buffer[]) {
     std::cout << "Write your " << input << ": " << std::endl;
     fgets(buffer, NAME_SIZE, stdin);
@@ -61,9 +30,57 @@ void get_login(const SOCKET &socket, char buffer[]) {
 
     send_client_input("password", socket, buffer);
 }
-inline void handle_command(SOCKET socket, comm_line command) {
+
+ssize_t send_all(int socket, const void* buffer, size_t length) {
+    ssize_t total_sent = 0;
+    ssize_t sent;
+    const char* ptr = (const char*) buffer;
+
+    while (total_sent < length) {
+        sent = send(socket, ptr + total_sent, length - total_sent, 0);
+        if (sent == -1) {
+            return -1;  // erro no envio
+        }
+        total_sent += sent;
+    }
+
+    return total_sent;
+}
+
+static inline void handle_command(SOCKET socket, comm_line command) {
     if(command.comm == "push") {
-        send_file(socket, command.arg);
+        char confirm;   
+        int number_files = 0;
+        std::string curr_file;
+
+        if(fs::is_directory(LOCAL_DIR + command.arg)) {
+
+            for (const auto& entry : fs::directory_iterator(LOCAL_DIR + command.arg))
+               number_files++;
+
+            number_files = htonl(number_files);
+
+            send(socket, &number_files, sizeof(number_files), 0);
+
+            for (const auto& entry : fs::directory_iterator(LOCAL_DIR + command.arg)) {
+                curr_file = entry.path().filename().string();
+
+                send(socket, curr_file.data(), sizeof(curr_file.data()), 0);
+                recv(socket, &confirm, sizeof(confirm), 0);
+
+                if(confirm)
+                    send_file(socket, LOCAL_DIR + command.arg + "/" + entry.path().filename().string());
+            }
+        } else {
+                number_files = htonl(1);
+                send(socket, &number_files, sizeof(int), 0);
+
+                send(socket, command.arg.data(), size(command.arg), 0);
+                recv(socket, &confirm, sizeof(confirm), 0);
+
+                if(confirm)
+                    send_file(socket, LOCAL_DIR + command.arg);
+        }
     }
 }
 

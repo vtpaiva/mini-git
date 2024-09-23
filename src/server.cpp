@@ -1,34 +1,8 @@
 #include "../header/header.hpp"
 
-const std::string REPOS_DIR = "repos/";
 const std::string LOGIN_MESSAGE = "Login completed!";
 
-namespace fs = std::filesystem;
-
-void receive_file(SOCKET client_socket, const std::string& file_name) {
-    int bytesReceived, file_size;
-    std::ofstream file(file_name, std::ios::binary);
-
-    if (!file) 
-        return perror("Could not open file");
-
-    read(client_socket, &file_size, sizeof(file_size));
-
-    std::string buffer(BUFFER_SIZE, '\0');
-
-    for (int total = 0; total < bytesReceived; total += bytesReceived) {
-        bytesReceived = recv(client_socket, buffer.data(), BUFFER_SIZE, 0);
-
-        file.write(buffer.data(), bytesReceived);
-    }
-
-    if (bytesReceived == -1) 
-        perror("Erro ao receber dados");
-
-    file.close();
-}
-
-void handle_command(comm_line line, client curr_client, SOCKET client_socket) {
+static inline void handle_command(comm_line line, client curr_client, SOCKET client_socket) {
     std::string dir_path = REPOS_DIR + curr_client.name;
     std::string filename = dir_path + "/" + line.arg;
 
@@ -53,7 +27,25 @@ void handle_command(comm_line line, client curr_client, SOCKET client_socket) {
             std::cerr << "File not found: " << filename << std::endl;
         }
     } else if(line.comm == "push") {
-        receive_file(client_socket, filename);
+        int number_files;
+        std::string buffer(BUFFER_SIZE, '\0');
+
+        read(client_socket, &number_files, sizeof(number_files));
+
+        number_files = ntohl(number_files);
+
+        for_each(number_files) {
+            recv(client_socket, buffer.data(), BUFFER_SIZE, 0);
+
+            send(client_socket, &RECEIVED, sizeof(char), 0);
+
+            resize_till_null(buffer);
+
+            receive_file(client_socket, REPOS_DIR + "/" + curr_client.name + "/" + buffer);
+
+            buffer.resize(BUFFER_SIZE);
+            fill_string(buffer);
+        }
     }
 }
 
@@ -68,11 +60,11 @@ int accept_client(SOCKET server_socket, SOCKET client_socket, std::string buffer
 
     for(int received_bytes; (received_bytes = recv(client_socket, buffer.data(), BUFFER_SIZE, 0)) > -1; buffer.resize(BUFFER_SIZE)) {
         resize_till_null(buffer);
-        command.clean_fields();
 
         if(buffer == "exit") 
             break;
 
+        command.clean_fields();
         command.from_line(buffer);
         command.resize_fields();
 
