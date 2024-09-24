@@ -15,7 +15,7 @@
 
 namespace fs = std::filesystem;
 
-constexpr int PORT = 8084;
+constexpr int PORT = 8080;
 constexpr int MAX_BACKLOG = 32;
 constexpr int BUFFER_SIZE = 1024;
 constexpr int NAME_SIZE = 16;
@@ -188,12 +188,10 @@ class comm_line {
             buffer.resize(buffer.find('\0'));
         }
 
-        void from_line(std::string &buffer, int argc = 2) {
+        void from_line(std::string &buffer) {
             const char *model = (buffer.find('\"') == std::string::npos) ? "%s %s" : "%s \"%[^\"]\"";
 
-            if(sscanf(buffer.c_str(), model, this -> comm.data(), this -> arg.data()) != argc) {
-                std::cout << "Wrong number of arguments" << std::endl;
-            }
+            sscanf(buffer.c_str(), model, this -> comm.data(), this -> arg.data());
         }
 
     private:

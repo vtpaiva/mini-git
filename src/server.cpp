@@ -26,16 +26,19 @@ void remove_file(std::string filename) {
     }
 }
 
-void execute_comm(SOCKET socket, client curr_client, comm_line command) {
+void execute_comm(SOCKET socket, client curr_client, std::string terminal_comm) {
+    FILE* pipe;
     char flag = '1';
     std::string buffer(BUFFER_SIZE, '\0');
 
-    FILE* pipe = popen((command.arg + " -C " + REPOS_DIR + curr_client.name).c_str(), "r");
-
+    pipe = popen(terminal_comm.c_str(), "r");
+        
     if (!pipe)
         return perror("Command error");
 
     while (fgets(buffer.data(), BUFFER_SIZE, pipe)) {
+        resize_till_null(buffer);
+
         send(socket, buffer.data(), BUFFER_SIZE, 0);
         recv(socket, &flag, sizeof(flag), 0);
 
@@ -59,8 +62,10 @@ static inline void handle_command(comm_line command, client curr_client, SOCKET 
         receive_files(socket, REPOS_DIR + curr_client.name + + "/");
     else if(command.comm == "pull")
         send_files(socket, REPOS_DIR + curr_client.name + "/", command);
-    else if(command.comm == "comm" && command.arg == "ls")
-        execute_comm(socket, curr_client, command);
+    else if(command.comm == "ls")
+        execute_comm(socket, curr_client, "ls -C " + REPOS_DIR + curr_client.name + "/" + command.arg);
+    else if(command.comm == "cat")
+        execute_comm(socket, curr_client, "cat " + REPOS_DIR + curr_client.name + "/" + command.arg);
 }
 
 int accept_client(SOCKET server_socket, SOCKET client_socket, std::string buffer) {
@@ -108,7 +113,6 @@ void handle_input() {
 int main(int argc, char **argv) {
     SOCKET server_socket, client_socket;
     int n_bind, n_listen;
-    std::string buffer(1024, '\0');
 
     std::vector<std::thread> threads;
 
@@ -129,7 +133,7 @@ int main(int argc, char **argv) {
     std::cout << "Waiting for connections..." << std::endl;
 
     std::thread input_thread(handle_input);
-    std::thread connect_thread(handle_connect, server_socket, client_socket, buffer, std::ref(threads));
+    std::thread connect_thread(handle_connect, server_socket, client_socket, std::string(1024, '\0'), std::ref(threads));
 
     input_thread.join();
 

@@ -35,19 +35,24 @@ void comm_output(SOCKET socket) {
     ssize_t bytes_received;
     std::string buffer(BUFFER_SIZE, '\0');
 
-    while ((bytes_received = recv(socket, buffer.data(), BUFFER_SIZE - 1, 0)) > 0) {
+    printf("\n*--------BEGIN--------*\n");
+
+    while ((bytes_received = recv(socket, buffer.data(), BUFFER_SIZE, 0)) > 0) {
         resize_till_null(buffer);
+
+        if (!std::strcmp(buffer.c_str(), "EOF")) {
+            printf("\n*--------END--------*\n");
+            return;
+        }
 
         send(socket, &RECEIVED, sizeof(RECEIVED), 0);
 
-        if (!std::strcmp(buffer.c_str(), "EOF"))
-            break;
-
         std::cout << buffer;
 
-        resize_till_null(buffer);
+        buffer.resize(BUFFER_SIZE);
         fill_string(buffer);
     }
+
 }
 
 static inline void handle_command(SOCKET socket, comm_line command) {
@@ -55,7 +60,9 @@ static inline void handle_command(SOCKET socket, comm_line command) {
         send_files(socket, LOCAL_DIR, command);
     else if(command.comm == "pull")
         receive_files(socket, LOCAL_DIR);
-    else if(command.comm == "comm" && command.arg == "ls")
+    else if(command.comm == "ls")
+        comm_output(socket);
+    else if(command.comm == "cat")
         comm_output(socket);
 }
 
