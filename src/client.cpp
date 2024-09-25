@@ -35,15 +35,13 @@ void comm_output(SOCKET socket) {
     ssize_t bytes_received;
     std::string buffer(BUFFER_SIZE, '\0');
 
-    printf("\n*--------BEGIN--------*\n");
+    PRINT_GREEN;
 
     while ((bytes_received = recv(socket, buffer.data(), BUFFER_SIZE, 0)) > 0) {
         resize_till_null(buffer);
 
-        if (!std::strcmp(buffer.c_str(), "EOF")) {
-            printf("\n*--------END--------*\n");
+        if (!std::strcmp(buffer.c_str(), "EOF"))
             return;
-        }
 
         send(socket, &RECEIVED, sizeof(RECEIVED), 0);
 
@@ -56,14 +54,24 @@ void comm_output(SOCKET socket) {
 }
 
 static inline void handle_command(SOCKET socket, comm_line command) {
-    if(command.comm == "push")
+    if(command.comm == "create" || command.comm == "delete")
+        /*IGNORE*/;
+    else if(command.comm == "push") 
         send_files(socket, LOCAL_DIR, command);
     else if(command.comm == "pull")
         receive_files(socket, LOCAL_DIR);
-    else if(command.comm == "ls")
+    else if(command.comm == "files")
         comm_output(socket);
-    else if(command.comm == "cat")
+    else if(command.comm == "show")
         comm_output(socket);
+    else if(command.comm == "comm")
+        comm_output(socket);
+    else {
+        PRINT_RED;
+        system((command.comm + " " + LOCAL_DIR + command.arg).c_str());
+    }
+
+    PRINT_DEFAULT;
 }
 
 void send_messages(const SOCKET &network_socket, std::string &client_buffer, std::string &server_buffer) {
@@ -71,9 +79,8 @@ void send_messages(const SOCKET &network_socket, std::string &client_buffer, std
     get_login(network_socket, client_buffer.data());
 
     recv(network_socket, server_buffer.data(), BUFFER_SIZE, 0);
-    std::cout << server_buffer << std::endl;
 
-    std::cout << "\nWrite your command: (create, or delete 'file_name')" << std::endl;
+    std::cout << "\nWrite your command:" << std::endl;
 
     while (std::getline(std::cin, client_buffer)) {
         send(network_socket, client_buffer.data(), BUFFER_SIZE, 0);
@@ -81,9 +88,7 @@ void send_messages(const SOCKET &network_socket, std::string &client_buffer, std
         if(client_buffer == "exit") 
             return;
 
-        command.clean_fields();
-        command.from_line(client_buffer);
-        command.resize_fields();
+        command.format_from_buffer(client_buffer);
 
         handle_command(network_socket, command);
     }

@@ -62,10 +62,14 @@ static inline void handle_command(comm_line command, client curr_client, SOCKET 
         receive_files(socket, REPOS_DIR + curr_client.name + + "/");
     else if(command.comm == "pull")
         send_files(socket, REPOS_DIR + curr_client.name + "/", command);
-    else if(command.comm == "ls")
+    else if(command.comm == "files")
         execute_comm(socket, curr_client, "ls -C " + REPOS_DIR + curr_client.name + "/" + command.arg);
-    else if(command.comm == "cat")
+    else if(command.comm == "show")
         execute_comm(socket, curr_client, "cat " + REPOS_DIR + curr_client.name + "/" + command.arg);
+    else if(command.comm == "comm")
+        execute_comm(socket, curr_client, command.arg);
+    else 
+        return;
 }
 
 int accept_client(SOCKET server_socket, SOCKET client_socket, std::string buffer) {
@@ -83,9 +87,7 @@ int accept_client(SOCKET server_socket, SOCKET client_socket, std::string buffer
         if(buffer == "exit") 
             break;
 
-        command.clean_fields();
-        command.from_line(buffer);
-        command.resize_fields();
+        command.format_from_buffer(buffer);
 
         handle_command(command, *new_client, client_socket);
     }

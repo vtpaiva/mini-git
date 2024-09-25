@@ -15,7 +15,7 @@
 
 namespace fs = std::filesystem;
 
-constexpr int PORT = 8080;
+constexpr int PORT = 8081;
 constexpr int MAX_BACKLOG = 32;
 constexpr int BUFFER_SIZE = 1024;
 constexpr int NAME_SIZE = 16;
@@ -39,6 +39,9 @@ constexpr const char* CONNECT_ERROR = "Connect";
 constexpr const char* ADRESS_ERROR = "Adress";
 constexpr const char* RECV_ERROR = "Message receiving";
 
+#define PRINT_GREEN system("printf \"\\033[0;31m\"")
+#define PRINT_RED system("printf \"\\033[0;32m\"")
+#define PRINT_DEFAULT system("printf \"\\033[0m\"")
 
 typedef int SOCKET;
 
@@ -152,11 +155,6 @@ class client {
 
             status = VALID;
         }
-
-        void copy_data_to_buffer(char buffer[]) {
-            sprintf(buffer, "Name: %s\nPassword: %s\n", this -> name.c_str(), 
-                                                        this -> password.c_str());
-        }
     private:
 };
 
@@ -191,7 +189,13 @@ class comm_line {
         void from_line(std::string &buffer) {
             const char *model = (buffer.find('\"') == std::string::npos) ? "%s %s" : "%s \"%[^\"]\"";
 
-            sscanf(buffer.c_str(), model, this -> comm.data(), this -> arg.data());
+            std::sscanf(buffer.c_str(), model, this -> comm.data(), this -> arg.data());
+        }
+
+        void format_from_buffer(std::string buffer) {
+            this -> clean_fields();
+            this -> from_line(buffer);
+            this -> resize_fields();
         }
 
     private:
