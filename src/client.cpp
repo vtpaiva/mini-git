@@ -1,24 +1,5 @@
 #include "../header/header.hpp"
 
-std::string get_ip() {
-    std::string hostname(BUFFER_SIZE, '\0');
-    exit_if_error(gethostname(hostname.data(), 1023), "hostname");
-
-    struct addrinfo hints = {0}, *res;
-
-    hints = {ai_family: AF_INET, ai_socktype: SOCK_STREAM};
-
-    exit_if_error(getaddrinfo(hostname.data(), NULL, &hints, &res), "adress info");
-
-    char ip_str[INET_ADDRSTRLEN];
-    struct sockaddr_in *ipv4 = (struct sockaddr_in*) res->ai_addr;
-
-    inet_ntop(AF_INET, &(ipv4->sin_addr), ip_str, INET_ADDRSTRLEN);
-
-    freeaddrinfo(res);
-    return std::string(ip_str);
-}
-
 void send_client_input(const char* input, const SOCKET &socket, char buffer[]) {
     std::cout << "Write your " << input << ": " << std::endl;
     fgets(buffer, NAME_SIZE, stdin);
@@ -105,9 +86,7 @@ int main(int argc, char **argv) {
 
     serv_addr = {sin_family: AF_INET, sin_port: htons(PORT)};
 
-    std::string ip_address = get_ip();
-
-    exit_if_error(inet_pton(AF_INET, ip_address.c_str(), &serv_addr.sin_addr), 
+    exit_if_error(inet_pton(AF_INET, "127.0.0.1", &serv_addr.sin_addr), 
                   ADRESS_ERROR);
 
     exit_if_error(connect(network_socket, (struct sockaddr *)&serv_addr, sizeof(serv_addr)),
