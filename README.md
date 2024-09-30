@@ -22,7 +22,7 @@ This application is developed using C++ and utilizes the sockets library for com
   ```bash
   sudo apt-get install g++
 
-## Getting started
+## How it works
 
 When a client connects to the server using a specified name, they are redirected to their `main` repository. The client can then use various commands through the terminal to navigate and interact with the repository environment.
 
