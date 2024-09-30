@@ -35,7 +35,7 @@ When a client connects to the server using a specified name, they are redirected
 | `push 'name'`         | Simulates Git's `push` functionality by sending files or directories to the server.<br>If the argument is `*`, the entire local directory is sent by the client. |
 | `pull 'name'`         | Simulates Git's `pull` functionality by requesting files or directories from the server.<br>If the argument is `*`, the entire current repository directory is sent by the server. |
 | `files 'folder'`      | Displays all files within a specified folder on the server machine.<br>If the argument is empty, all contents of the current repository are shown. |
-| `show 'file_name'`    | Displays the contents of a file on the server machine. |
+| `show 'file_name'`    | Displays the contents of a file from the server machine. |
 | `repo 'repo_name'`    | Switches to another repository or creates a new one if `repo_name` does not exist.<br>If the argument is empty, displays the name of the current repository. |
 | `repos`               | Lists all of the client's repositories. |
 | `xrepo 'repo_name'`   | Switches the current repository to that of another client. |
