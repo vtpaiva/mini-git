@@ -131,7 +131,7 @@ int main(int argc, char **argv) {
     SOCKET network_socket = 0;
     std::string client_buffer(BUFFER_SIZE, '\0');
 
-    // Initalize the network socket.
+    // Initalizes the network socket.
     exit_if_error(network_socket = socket(AF_INET, SOCK_STREAM, 0), 
                   SOCKET_CREATION_ERROR);
 
