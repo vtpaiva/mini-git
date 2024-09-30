@@ -21,15 +21,14 @@ constexpr int BUFFER_SIZE = 1024;
 constexpr int NAME_SIZE = 16;
 constexpr int COMMAND_SIZE = 8;
 constexpr int ARG_SIZE = 64;
-constexpr int CLIENT_SIZE = sizeof(char) + NAME_SIZE + ARG_SIZE;
 
 const std::string LOCAL_DIR = "local/";
 const std::string REPOS_DIR = "repos/";
 constexpr const char RECEIVED = '1';
 constexpr const char NOT_RECEIVED = '\0';
-constexpr const char FILL_CHAR = '$';
 constexpr const char FILE_FLAG = '0';
 constexpr const char FOLDER_FLAG = '1';
+constexpr const char END = 'E';
 constexpr const char* SOCKET_CREATION_ERROR = "Socket";
 constexpr const char* BIND_ERROR = "Bind";
 constexpr const char* LISTEN_ERROR = "Listen";
@@ -40,7 +39,6 @@ constexpr const char* RECV_ERROR = "Message receiving";
 constexpr const char* CURR_REPO_ERROR = "This is your current repository, tell somewhere to go:\n";
 constexpr const char* OK_MESSAGE = "Sent!";
 constexpr const char* MAIN_EXCEPTION = "main_exc";
-constexpr const char END = 'E';
 
 const struct sockaddr_in default_server_addr = {.sin_family = AF_INET, 
                                                 .sin_port = htons(PORT),
@@ -69,14 +67,6 @@ void exit_if_error(const int value, const std::string err = "code") {
 
 void remove_char(std::string &str, char rem = '\n') {
     str.erase(std::remove(str.begin(), str.end(), rem), str.end());
-}
-
-std::string filled_string(std::string &st) {
-    std::string tmp = st;
-
-    std::fill(tmp.begin() + tmp.find('\0'), tmp.end(), FILL_CHAR);
-
-    return tmp;
 }
 
 inline void resize_till_null(std::string &st) {
