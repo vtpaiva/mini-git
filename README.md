@@ -1,4 +1,4 @@
-# Redes
+# mini-git
 
 ## Description
 
