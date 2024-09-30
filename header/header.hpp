@@ -15,7 +15,7 @@
 
 namespace fs = std::filesystem;
 
-constexpr int PORT = 8081;
+constexpr int PORT = 8080;
 constexpr int MAX_BACKLOG = 32;
 constexpr int BUFFER_SIZE = 1024;
 constexpr int NAME_SIZE = 16;
@@ -38,16 +38,25 @@ constexpr const char* ACCEPT_ERROR = "Accept";
 constexpr const char* CONNECT_ERROR = "Connect";
 constexpr const char* ADRESS_ERROR = "Adress";
 constexpr const char* RECV_ERROR = "Message receiving";
+constexpr const char* CURR_REPO_ERROR = "This is your current repository, tell somewhere to go:\n";
+constexpr const char* OK_MESSAGE = "Sent!";
+
+const struct sockaddr_in default_server_addr = {.sin_family = AF_INET, 
+                                                .sin_port = htons(PORT),
+                                                .sin_addr = {s_addr: INADDR_ANY}},
+                         default_client_addr = {.sin_family = AF_INET, 
+                                                .sin_port = htons(PORT)};
 
 #define PRINT_GREEN system("printf \"\\033[0;31m\"")
 #define PRINT_RED system("printf \"\\033[0;32m\"")
 #define PRINT_DEFAULT system("printf \"\\033[0m\"")
+#define for_each(n) for(int It = 0; It < n; It++)
 
 typedef int SOCKET;
 
-#define fill_string(st) (std::fill(st.begin(), st.end(), '\0'))
-#define resize_erase(st, size) (st.resize(size), fill_string(st))
-#define for_each(n) for(int It = 0; It < n; It++)
+void fill_string(std::string &st) {
+    std::fill(st.begin(), st.end(), '\0');
+}
 
 // Returns error message if value means error.
 void exit_if_error(const int value, const std::string err = "code") {
@@ -141,10 +150,10 @@ void send_file(SOCKET socket, const std::string& file_name) {
 class client {
     public:
 
-        char status;
         std::string name, password;
+        std::string curr_dir;
 
-        client(SOCKET &client_socket) : name(std::string(NAME_SIZE,0)), password(PASSWORD_SIZE, 0), status(INVALID){
+        client(SOCKET &client_socket) : name(std::string(NAME_SIZE,0)), password(PASSWORD_SIZE, 0), curr_dir(std::string(ARG_SIZE,0)){
             int received_bytes;
 
             received_bytes = recv(client_socket, name.data(), NAME_SIZE, 0) - 1;
@@ -153,7 +162,7 @@ class client {
             received_bytes = recv(client_socket, password.data(), PASSWORD_SIZE, 0) - 1;
             this -> password.resize(received_bytes);
 
-            status = VALID;
+            this -> curr_dir = REPOS_DIR + this -> name;
         }
     private:
 };
@@ -202,37 +211,39 @@ class comm_line {
 };
 
 void send_files(SOCKET socket, std::string dir_path, comm_line command) {
-    char confirm;   
-        int number_files = 0;
-        std::string curr_file;
+    char flag;   
+    int number_files = 0;
+    std::string curr_file, origin_path;
 
-        if(fs::is_directory(dir_path + command.arg)) {
-            for (const auto& entry : fs::directory_iterator(dir_path + command.arg))
-                number_files++;
+    origin_path = (command.arg == "*") ? dir_path : dir_path + "/" + command.arg;
 
-            number_files = htonl(number_files);
+    if(fs::is_directory(origin_path)) {
+        for (const auto& entry : fs::directory_iterator(origin_path))
+            number_files++;
 
-            send(socket, &number_files, sizeof(number_files), 0);
+        number_files = htonl(number_files);
 
-            for (const auto& entry : fs::directory_iterator(dir_path + command.arg)) {
-                curr_file = entry.path().filename().string();
+        send(socket, &number_files, sizeof(number_files), 0);
 
-                send(socket, curr_file.data(), sizeof(curr_file.data()), 0);
-                recv(socket, &confirm, sizeof(confirm), 0);
+        for (const auto& entry : fs::directory_iterator(origin_path)) {
+            curr_file = entry.path().filename().string();
 
-                if(confirm)
-                    send_file(socket, dir_path + command.arg + "/" + entry.path().filename().string());
-            }
-        } else {
-            number_files = htonl(1);
-            send(socket, &number_files, sizeof(int), 0);
+            send(socket, curr_file.data(), sizeof(curr_file.data()), 0);
+            recv(socket, &flag, sizeof(flag), 0);
 
-            send(socket, command.arg.data(), size(command.arg), 0);
-            recv(socket, &confirm, sizeof(confirm), 0);
-
-            if(confirm)
-                send_file(socket, dir_path + command.arg);
+            if(flag)
+                send_file(socket, origin_path + "/" + entry.path().filename().string());
         }
+    } else {
+        number_files = htonl(1);
+        send(socket, &number_files, sizeof(int), 0);
+
+        send(socket, command.arg.data(), size(command.arg), 0);
+        recv(socket, &flag, sizeof(flag), 0);
+
+        if(flag)
+            send_file(socket, origin_path);
+    }
 }
 
 void receive_files(SOCKET socket, std::string dir_path) {

@@ -2,7 +2,17 @@
 
 const std::string LOGIN_MESSAGE = "Login completed!";
 
-void add_file(std::string filename) {
+std::string curr_repo(client client) {
+    std::string tmp(ARG_SIZE, '\0');
+
+    if(std::sscanf(client.curr_dir.data(), "%*[^/]/%s", tmp.data()))
+        return tmp;
+
+    return "Error\n";
+}
+
+void add_file(comm_line command, client &client) {
+    std::string filename(client.curr_dir + "/" + command.arg);
     std::ofstream client_file(filename);
 
     if (!client_file) {
@@ -14,16 +24,59 @@ void add_file(std::string filename) {
     client_file.close();
 }
 
-void remove_file(std::string filename) {
-    if (fs::exists(filename)) {
-        if (!fs::remove(filename)) {
-            std::cerr << "Removing file error: " << strerror(errno) << std::endl;
-        } else {
-            std::cout << "File removed: " << filename << std::endl;
+inline void change_repo(comm_line command, client &client) {
+    if(!fs::is_directory(REPOS_DIR + client.name + "/" + command.arg))
+        fs::create_directory(REPOS_DIR + client.name + "/" + command.arg);
+
+    client.curr_dir = REPOS_DIR + client.name + "/" + command.arg;
+}
+
+inline void change_repo(std::string repo_name, client &client) {
+    if(!fs::is_directory(REPOS_DIR + client.name + "/" + repo_name))
+        fs::create_directory(REPOS_DIR + client.name + "/" + repo_name);
+
+    client.curr_dir = REPOS_DIR + client.name + "/" + repo_name;
+}
+
+inline void change_to_external_repo(comm_line command, client &client) {
+    if(fs::is_directory(REPOS_DIR + command.arg))
+        client.curr_dir = REPOS_DIR + command.arg;
+}
+
+void remove_comm(SOCKET socket, comm_line command, client &client) {
+    if(fs::is_directory(REPOS_DIR + client.name + "/" + command.arg)) {
+        std::string repo_to_delete(REPOS_DIR + client.name + "/" + command.arg);
+
+        if(client.curr_dir == repo_to_delete) {
+            std::string buffer(BUFFER_SIZE, '\0');
+
+            send(socket, CURR_REPO_ERROR, BUFFER_SIZE, 0);
+
+            int bytes_received = recv(socket, buffer.data(), BUFFER_SIZE, 0);
+
+            resize_till_null(buffer);
+
+            change_repo(buffer, std::ref(client));
+
+            fs::remove_all(repo_to_delete);
+
+            return;
         }
+
+        fs::remove_all(repo_to_delete);
     } else {
-        std::cerr << "File not found: " << filename << std::endl;
+        if (fs::exists(client.curr_dir + "/" + command.arg)) {
+            if (!fs::remove(client.curr_dir + "/" + command.arg)) {
+                std::cerr << "Removing file error: " << strerror(errno) << std::endl;
+            } else {
+                std::cout << "File removed: " << command.arg << std::endl;
+            }
+        } else {
+            std::cerr << "File not found: " << command.arg << std::endl;
+        }
     }
+
+    send(socket, OK_MESSAGE, std::strlen(OK_MESSAGE), 0);
 }
 
 void execute_comm(SOCKET socket, client curr_client, std::string terminal_comm) {
@@ -51,25 +104,33 @@ void execute_comm(SOCKET socket, client curr_client, std::string terminal_comm) 
     send(socket, &"EOF", strlen("EOF"), 0);
 }
 
-static inline void handle_command(comm_line command, client curr_client, SOCKET socket) {
-    std::string filename = REPOS_DIR + curr_client.name + "/" + command.arg;
+static inline void handle_command(comm_line command, client &curr_client, SOCKET socket) {
+    std::string filename = curr_client.curr_dir + "/" + command.arg, tmp;
 
-    if (command.comm == "create") 
-        add_file(filename);
+    if (command.comm == "create")
+        add_file(command, std::ref(curr_client));
     else if (command.comm == "delete") 
-        remove_file(filename);
+        remove_comm(socket, command, std::ref(curr_client));
     else if(command.comm == "push") 
-        receive_files(socket, REPOS_DIR + curr_client.name + + "/");
+        receive_files(socket, curr_client.curr_dir + "/");
     else if(command.comm == "pull")
-        send_files(socket, REPOS_DIR + curr_client.name + "/", command);
+        send_files(socket, curr_client.curr_dir, command);
     else if(command.comm == "files")
-        execute_comm(socket, curr_client, "ls -C " + REPOS_DIR + curr_client.name + "/" + command.arg);
+        execute_comm(socket, curr_client, "ls -C " + curr_client.curr_dir + "/" + command.arg);
     else if(command.comm == "show")
-        execute_comm(socket, curr_client, "cat " + REPOS_DIR + curr_client.name + "/" + command.arg);
+        execute_comm(socket, curr_client, "cat " + curr_client.curr_dir + "/" + command.arg);
+    else if(command.comm == "repo") {
+        if(command.arg == "")
+            send(socket, curr_repo(curr_client).data(), ARG_SIZE, 0);
+        else
+            change_repo(command, std::ref(curr_client));
+    }
+    else if(command.comm == "repos")
+        execute_comm(socket, curr_client, "ls -C " + REPOS_DIR + curr_client.name);
+    else if(command.comm == "xrepo") 
+        change_to_external_repo(command, std::ref(curr_client));
     else if(command.comm == "comm")
         execute_comm(socket, curr_client, command.arg);
-    else 
-        return;
 }
 
 int accept_client(SOCKET server_socket, SOCKET client_socket, std::string buffer) {
@@ -79,7 +140,7 @@ int accept_client(SOCKET server_socket, SOCKET client_socket, std::string buffer
     send(client_socket, LOGIN_MESSAGE.data(), BUFFER_SIZE, 0);
     std::cout << "Login: \"" << new_client -> name << "\"!" << std::endl;
 
-    std::filesystem::create_directory(REPOS_DIR + new_client->name);
+    std::filesystem::create_directory(new_client -> curr_dir);
 
     for(int received_bytes; (received_bytes = recv(client_socket, buffer.data(), BUFFER_SIZE, 0)) > -1; buffer.resize(BUFFER_SIZE)) {
         resize_till_null(buffer);
@@ -89,7 +150,7 @@ int accept_client(SOCKET server_socket, SOCKET client_socket, std::string buffer
 
         command.format_from_buffer(buffer);
 
-        handle_command(command, *new_client, client_socket);
+        handle_command(command, std::ref(*new_client), client_socket);
     }
 
     std::cout << "Logout: \"" << new_client -> name << "\"!" << std::endl;
@@ -113,18 +174,16 @@ void handle_input() {
 }
 
 int main(int argc, char **argv) {
-    SOCKET server_socket, client_socket;
     int n_bind, n_listen;
+    SOCKET server_socket, client_socket;
 
     std::vector<std::thread> threads;
 
     exit_if_error(server_socket = socket(AF_INET, SOCK_STREAM, 0), 
                   SOCKET_CREATION_ERROR);
 
-    struct sockaddr_in serv_addr = {sin_family: AF_INET, 
-                                    sin_port: htons(PORT),
-                                    sin_addr: {s_addr: INADDR_ANY}};
-    memset(&serv_addr.sin_zero, '0', 8);
+    struct sockaddr_in serv_addr = default_server_addr;
+    memset(serv_addr.sin_zero, '0', 8);
 
     exit_if_error(n_bind = bind(server_socket, (sockaddr*) &serv_addr, sizeof(sockaddr_in)), 
                   BIND_ERROR);
