@@ -2,6 +2,7 @@
 
 const std::string LOGIN_MESSAGE = "Login completed!";
 
+// Return the client's current repository name.
 std::string curr_repo(client client) {
     std::string tmp(ARG_SIZE, '\0');
 
@@ -11,6 +12,7 @@ std::string curr_repo(client client) {
     return "Error\n";
 }
 
+// Create a new file in the client's repository.
 void add_file(comm_line command, client &client) {
     std::string filename(client.curr_dir + "/" + command.arg);
     std::ofstream client_file(filename);
@@ -24,6 +26,7 @@ void add_file(comm_line command, client &client) {
     client_file.close();
 }
 
+// Function to change the client's current repository by the command.
 inline void change_repo(comm_line command, client &client) {
     if(!fs::is_directory(REPOS_DIR + client.name + "/" + command.arg))
         fs::create_directory(REPOS_DIR + client.name + "/" + command.arg);
@@ -31,6 +34,7 @@ inline void change_repo(comm_line command, client &client) {
     client.curr_dir = REPOS_DIR + client.name + "/" + command.arg;
 }
 
+// Function to change the client's current repository by the repos's name.
 inline void change_repo(std::string repo_name, client &client) {
     if(!fs::is_directory(REPOS_DIR + client.name + "/" + repo_name))
         fs::create_directory(REPOS_DIR + client.name + "/" + repo_name);
@@ -38,14 +42,18 @@ inline void change_repo(std::string repo_name, client &client) {
     client.curr_dir = REPOS_DIR + client.name + "/" + repo_name;
 }
 
+// Function to change the client's current repository to another user's repository.
 inline void change_to_external_repo(comm_line command, client &client) {
     if(fs::is_directory(REPOS_DIR + command.arg))
         client.curr_dir = REPOS_DIR + command.arg;
 }
 
+// Function to execute the command to remove a file/directory/repository.
 void remove_comm(SOCKET socket, comm_line command, client &client) {
+    // If the name matches, remove directory.
     if(fs::is_directory(client.curr_dir + "/" + command.arg))
         fs::remove_all(client.curr_dir + "/" + command.arg);
+    // If the name matches, remove repository.
     else if(fs::is_directory(REPOS_DIR + client.name + "/" + command.arg)) {
         if(command.arg == "main") {
             send(socket, MAIN_EXCEPTION, sizeof(MAIN_EXCEPTION), 0);
@@ -54,6 +62,7 @@ void remove_comm(SOCKET socket, comm_line command, client &client) {
 
         std::string repo_to_delete(REPOS_DIR + client.name + "/" + command.arg);
 
+        // If the client is trying to delete the current repository, tell somewhere to go.
         if(client.curr_dir == repo_to_delete) {
             std::string buffer(BUFFER_SIZE, '\0');
 
@@ -71,7 +80,9 @@ void remove_comm(SOCKET socket, comm_line command, client &client) {
         }
 
         fs::remove_all(repo_to_delete);
-    } else {
+    } 
+    // If the name matches, remove file.
+    else {
         if (fs::exists(client.curr_dir + "/" + command.arg)) {
             if (!fs::remove(client.curr_dir + "/" + command.arg)) {
                 std::cerr << "Removing file error: " << strerror(errno) << std::endl;
@@ -85,7 +96,7 @@ void remove_comm(SOCKET socket, comm_line command, client &client) {
 
     send(socket, OK_MESSAGE, std::strlen(OK_MESSAGE), 0);
 }
-
+// Function to execute a command and send the output to the client.
 void execute_comm(SOCKET socket, client curr_client, std::string terminal_comm) {
     FILE* pipe;
     char flag = RECEIVED;
@@ -96,6 +107,7 @@ void execute_comm(SOCKET socket, client curr_client, std::string terminal_comm) 
     if (!pipe)
         return perror("Command error");
 
+    // While is data left, keep sending it to the client.
     while (fgets(buffer.data(), BUFFER_SIZE, pipe)) {
         resize_till_null(buffer);
 
@@ -111,6 +123,7 @@ void execute_comm(SOCKET socket, client curr_client, std::string terminal_comm) 
     send(socket, &END, sizeof(END), 0);
 }
 
+// Function to handle the commands from the client.
 static inline void handle_command(comm_line command, client &curr_client, SOCKET socket) {
     std::string filename = curr_client.curr_dir + "/" + command.arg, tmp;
 
@@ -140,24 +153,7 @@ static inline void handle_command(comm_line command, client &curr_client, SOCKET
         execute_comm(socket, curr_client, command.arg);
 }
 
-void get_initial_repo(SOCKET socket, client &client, std::string& buffer) {
-    int received_bytes;
-
-    if(fs::exists(REPOS_DIR + client.name)) {
-        send(socket, &RECEIVED, sizeof(RECEIVED), 0);
-        execute_comm(socket, client, "ls -C " + REPOS_DIR + client.name);
-    } else
-        send(socket, &NOT_RECEIVED, sizeof(NOT_RECEIVED), 0);
-
-    received_bytes = recv(socket, buffer.data(),BUFFER_SIZE, 0) - 1;
-    buffer.resize(received_bytes);
-
-    change_repo(buffer, std::ref(client));
-
-    buffer.resize(BUFFER_SIZE);
-    fill_string(buffer);
-}
-
+// Function to handle the connection from the client.
 int accept_client(SOCKET socket, std::string buffer) {
     comm_line command = comm_line();
     client *new_client = new client(socket);
@@ -168,6 +164,7 @@ int accept_client(SOCKET socket, std::string buffer) {
     std::filesystem::create_directory(REPOS_DIR + new_client -> name);
     std::filesystem::create_directory(new_client -> curr_dir);
 
+    // While the client doesn't want to 'exit', keep receiving commands.
     for(int received_bytes; (received_bytes = recv(socket, buffer.data(), BUFFER_SIZE, 0)) > -1; buffer.resize(BUFFER_SIZE)) {
         resize_till_null(buffer);
 
@@ -184,12 +181,14 @@ int accept_client(SOCKET socket, std::string buffer) {
     return EXIT_SUCCESS;
 }
 
+// Function to handle a client connection to the server, creating a thread.
 void handle_connect(SOCKET server_socket, SOCKET client_socket, std::string buffer, std::vector<std::thread> &threads) {
     while(client_socket = accept(server_socket, nullptr, nullptr)) {
         threads.push_back(std::thread(accept_client, client_socket, buffer));
     }
 }
 
+// Function to handle exit command in the input.
 void handle_input() {
     std::string input(COMMAND_SIZE, '\0');
 
@@ -202,9 +201,9 @@ void handle_input() {
 int main(int argc, char **argv) {
     int n_bind, n_listen;
     SOCKET server_socket, client_socket;
-
     std::vector<std::thread> threads;
 
+    // Initialize the server socket.
     exit_if_error(server_socket = socket(AF_INET, SOCK_STREAM, 0), 
                   SOCKET_CREATION_ERROR);
 
@@ -219,6 +218,7 @@ int main(int argc, char **argv) {
 
     std::cout << "Waiting for connections..." << std::endl;
 
+    // Creating threads to handle input and connections from the clients.
     std::thread input_thread(handle_input);
     std::thread connect_thread(handle_connect, server_socket, client_socket, std::string(1024, '\0'), std::ref(threads));
 

@@ -1,14 +1,17 @@
 #include "../header/header.hpp"
 
+// Function to print the output from a command executed by the server.
 void comm_output(SOCKET socket) {
     ssize_t bytes_received;
     std::string buffer(BUFFER_SIZE, '\0');
 
     PRINT_GREEN;
 
+    // While the server keep sending data, print it.
     for(int n = 0; (bytes_received = recv(socket, buffer.data(), BUFFER_SIZE, 0)) > 0; n++) {
         resize_till_null(buffer);
 
+        // While the server has not send the stop flag, continue.
         if (buffer.c_str()[0] == END) {
             if(!n)
                 std::cout << "*Empty*" << std::endl;
@@ -16,6 +19,7 @@ void comm_output(SOCKET socket) {
             return;
         }
 
+        // Send the receive confirmation to the server.
         send(socket, &RECEIVED, sizeof(RECEIVED), 0);
 
         std::cout << buffer;
@@ -25,26 +29,31 @@ void comm_output(SOCKET socket) {
     }
 }
 
-void send_client_input(const char* input, const SOCKET &socket, char buffer[], const int input_size = BUFFER_SIZE) {
+// Send a certain input to the server from the stdin.
+void get_client_input(const char* input, const SOCKET &socket, char buffer[], const int input_size = BUFFER_SIZE) {
     std::cout << "Write your " << input << ": " << std::endl;
     fgets(buffer, input_size, stdin);
     send(socket, buffer, strlen(buffer), 0);
 }
 
+// Function to execute the remove file/directory/repository command.
 void remove_comm(SOCKET socket) {
     std::string buffer(BUFFER_SIZE, '\0');
 
     int received_bytes = recv(socket, buffer.data(), BUFFER_SIZE, 0);
     buffer.resize(received_bytes);
 
+    // If the deletion did not cause an error, return.
     if(buffer == OK_MESSAGE)
         return;
 
+    // If the user tried to remove the main repository, throw an error.
     if(buffer == MAIN_EXCEPTION) {
         std::cout << "Main repository cannot be deleted." << std::endl;
         return;
     }
 
+    // If the user tried to delete his current repository, ask which one to go.
     std::cout <<  "You're removing the current repository, tell somewhere else to go:\n" << std::endl;
 
     std::getline(std::cin, buffer);
@@ -52,6 +61,7 @@ void remove_comm(SOCKET socket) {
     send(socket, buffer.data(), BUFFER_SIZE, 0);
 }
 
+// Print the client's current repository.
 void show_repo(SOCKET socket) {
     std::string buffer(ARG_SIZE, '\0');
 
@@ -62,6 +72,7 @@ void show_repo(SOCKET socket) {
     std::cout << buffer << std::endl;
 }
 
+// Function to handle the client's command.
 static inline void handle_command(SOCKET socket, comm_line command) {
     if(command.comm == "create" || command.comm == "xrepo")
         /*IGNORE*/;
@@ -91,9 +102,10 @@ static inline void handle_command(SOCKET socket, comm_line command) {
     PRINT_DEFAULT;
 }
 
-void send_messages(const SOCKET &socket, std::string &buffer) {
+// Function to handle the client's command sending to the server.
+void handle_connection(const SOCKET &socket, std::string &buffer) {
     comm_line command = comm_line();
-    send_client_input("name", socket, buffer.data(), NAME_SIZE);
+    get_client_input("name", socket, buffer.data(), NAME_SIZE);
 
     buffer.resize(BUFFER_SIZE);
     fill_string(buffer);
@@ -102,6 +114,7 @@ void send_messages(const SOCKET &socket, std::string &buffer) {
 
     std::cout << "\nWrite your command:" << std::endl;
 
+    // While the client doesn't want to 'exit, keep sending commands.
     while (std::getline(std::cin, buffer)) {
         send(socket, buffer.data(), BUFFER_SIZE, 0);
 
@@ -116,8 +129,9 @@ void send_messages(const SOCKET &socket, std::string &buffer) {
 
 int main(int argc, char **argv) {
     SOCKET network_socket = 0;
-    std::string server_buffer(BUFFER_SIZE, '\0'), client_buffer(BUFFER_SIZE, '\0');
+    std::string client_buffer(BUFFER_SIZE, '\0');
 
+    // Initalize the network socket.
     exit_if_error(network_socket = socket(AF_INET, SOCK_STREAM, 0), 
                   SOCKET_CREATION_ERROR);
 
@@ -132,7 +146,7 @@ int main(int argc, char **argv) {
     exit_if_error(connect(network_socket, (struct sockaddr *)&serv_addr, sizeof(serv_addr)),
                   CONNECT_ERROR);
 
-    send_messages(network_socket, client_buffer);
+    handle_connection(network_socket, client_buffer);
 
     close(network_socket);
 

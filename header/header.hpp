@@ -22,8 +22,6 @@ constexpr int NAME_SIZE = 16;
 constexpr int COMMAND_SIZE = 8;
 constexpr int ARG_SIZE = 64;
 
-const std::string LOCAL_DIR = "local/";
-const std::string REPOS_DIR = "repos/";
 constexpr const char RECEIVED = '1';
 constexpr const char NOT_RECEIVED = '\0';
 constexpr const char FILE_FLAG = '0';
@@ -39,6 +37,8 @@ constexpr const char* RECV_ERROR = "Message receiving";
 constexpr const char* CURR_REPO_ERROR = "This is your current repository, tell somewhere to go:\n";
 constexpr const char* OK_MESSAGE = "Sent!";
 constexpr const char* MAIN_EXCEPTION = "main_exc";
+const std::string LOCAL_DIR = "local/";
+const std::string REPOS_DIR = "repos/";
 
 const struct sockaddr_in default_server_addr = {.sin_family = AF_INET, 
                                                 .sin_port = htons(PORT),
@@ -53,6 +53,7 @@ const struct sockaddr_in default_server_addr = {.sin_family = AF_INET,
 
 typedef int SOCKET;
 
+// Fill an entire string with null characters.
 void fill_string(std::string &st) {
     std::fill(st.begin(), st.end(), '\0');
 }
@@ -65,10 +66,7 @@ void exit_if_error(const int value, const std::string err = "code") {
     }
 }
 
-void remove_char(std::string &str, char rem = '\n') {
-    str.erase(std::remove(str.begin(), str.end(), rem), str.end());
-}
-
+// Resizes a string to the length of the fisrt occurrence of '\0'.
 inline void resize_till_null(std::string &st) {
     auto pos = st.find('\0');
 
@@ -76,6 +74,7 @@ inline void resize_till_null(std::string &st) {
         st.resize(pos);
 }
 
+// Client class, representing a user.
 class client {
     public:
 
@@ -93,6 +92,7 @@ class client {
     private:
 };
 
+// Command line class, representing a command inputed by the client.
 class comm_line {
     public:
 
@@ -130,6 +130,7 @@ class comm_line {
     private:
 };
 
+// Sends the file's bytes via socket.
 void send_file(SOCKET socket, const std::string& file_name) {
     char flag;
     std::string buffer(BUFFER_SIZE, '\0');
@@ -138,11 +139,13 @@ void send_file(SOCKET socket, const std::string& file_name) {
     if (!file)
         return perror("File not found");
 
+    // Gets the file size.
     int32_t file_size_network = htonl(file.tellg());
     file.seekg(0, std::ios::beg);
 
     send(socket, &file_size_network, sizeof(file_size_network), 0);
 
+    // While the file is not over, keep sending the data.
     while(file) {
         file.read(buffer.data(), buffer.size());
         std::streamsize bytes_read = file.gcount();
@@ -163,6 +166,7 @@ void send_file(SOCKET socket, const std::string& file_name) {
     file.close();
 }
 
+// Receives the file's bytes via socket.
 void receive_file(SOCKET socket, const std::string& file_name) {
     int ret, total_received = 0, bytes_to_receive;
     int32_t file_size_network;
@@ -181,7 +185,7 @@ void receive_file(SOCKET socket, const std::string& file_name) {
     while(total_received < file_size) {
         bytes_to_receive = std::min(BUFFER_SIZE, file_size - total_received);
 
-        if((ret = recv(socket, buffer.data(), bytes_to_receive, 0)) <= 0) {
+        if((ret = recv(socket, buffer.data(), bytes_to_receive, 0)) < 1) {
             file.close();
             return perror("Failed to receive file data");
         }
@@ -189,16 +193,19 @@ void receive_file(SOCKET socket, const std::string& file_name) {
         file.write(buffer.data(), ret);
         total_received += ret;
 
+        // Confirms the receiving.
         send(socket, &RECEIVED, sizeof(RECEIVED), 0);
     }
 
     file.close();
 }
 
+// Sends file's entrys via socket.
 void send_entry(SOCKET socket, const std::string& entry_path, const std::string& base_path) {
     std::string relative_path = fs::relative(entry_path, base_path).string();
     uint32_t path_length_network = htonl(relative_path.size());
 
+    // If it's a directory send the files inside recursively.
     if(fs::is_directory(entry_path)) {
         send(socket, &FOLDER_FLAG, sizeof(FOLDER_FLAG), 0);
         send(socket, &path_length_network, sizeof(path_length_network), 0);
@@ -206,8 +213,9 @@ void send_entry(SOCKET socket, const std::string& entry_path, const std::string&
 
         for (const auto& entry : fs::directory_iterator(entry_path))
             send_entry(socket, entry.path().string(), base_path);
-
-    } else if(fs::is_regular_file(entry_path)) {
+    } 
+    // If it's a file, send it's data.
+    else if(fs::is_regular_file(entry_path)) {
         send(socket, &FILE_FLAG, sizeof(FILE_FLAG), 0);
         send(socket, &path_length_network, sizeof(path_length_network), 0);
         send(socket, relative_path.data(), relative_path.size(), 0);
@@ -216,6 +224,7 @@ void send_entry(SOCKET socket, const std::string& entry_path, const std::string&
     }
 }
 
+// Sends multiple files via socket.
 void send_files(SOCKET socket, const std::string& dir_path, const comm_line& command) {
     std::string origin_path = (command.arg == "*") ? dir_path : dir_path + "/" + command.arg;
 
@@ -225,26 +234,29 @@ void send_files(SOCKET socket, const std::string& dir_path, const comm_line& com
         perror("Path does not exist");
 
 
+    // Ends the data tramission with flag.
     send(socket, &END, sizeof(END), 0);
 }
 
+// Receives multiple files via socket.
 void receive_files(SOCKET socket, const std::string& dir_path) {
-    int ret;
+    int received_bytes;
     char type;
 
-    while(ret = recv(socket, &type, sizeof(type), 0)) {
+    // While theres files left, keeps receiving.
+    while(received_bytes = recv(socket, &type, sizeof(type), 0)) {
         if (type == END)
             break;
 
         uint32_t path_length_network;
     
-        if((ret = recv(socket, reinterpret_cast<char*>(&path_length_network), sizeof(path_length_network), 0)) < 1) 
+        if((received_bytes = recv(socket, reinterpret_cast<char*>(&path_length_network), sizeof(path_length_network), 0)) < 1) 
             return perror("Failed to receive path length");
 
         uint32_t path_length = ntohl(path_length_network);
         std::string relative_path(path_length, '\0');
 
-        if((ret = recv(socket, &relative_path[0], path_length, 0)) <= 0) 
+        if((received_bytes = recv(socket, &relative_path[0], path_length, 0)) <= 0) 
             return perror("Failed to receive path");
 
         std::string full_path = dir_path + "/" + relative_path;
