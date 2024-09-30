@@ -1,28 +1,20 @@
 #include "../header/header.hpp"
 
-void send_client_input(const char* input, const SOCKET &socket, char buffer[]) {
-    std::cout << "Write your " << input << ": " << std::endl;
-    fgets(buffer, NAME_SIZE, stdin);
-    send(socket, buffer, strlen(buffer), 0);
-}
-
-void get_login(const SOCKET &socket, char buffer[]) {
-    send_client_input("name", socket, buffer);
-
-    send_client_input("password", socket, buffer);
-}
-
 void comm_output(SOCKET socket) {
     ssize_t bytes_received;
     std::string buffer(BUFFER_SIZE, '\0');
 
     PRINT_GREEN;
 
-    while ((bytes_received = recv(socket, buffer.data(), BUFFER_SIZE, 0)) > 0) {
+    for(int n = 0; (bytes_received = recv(socket, buffer.data(), BUFFER_SIZE, 0)) > 0; n++) {
         resize_till_null(buffer);
 
-        if (!std::strcmp(buffer.c_str(), "EOF"))
+        if (buffer.c_str()[0] == END) {
+            if(!n)
+                std::cout << "*Empty*" << std::endl;
+
             return;
+        }
 
         send(socket, &RECEIVED, sizeof(RECEIVED), 0);
 
@@ -33,17 +25,27 @@ void comm_output(SOCKET socket) {
     }
 }
 
+void send_client_input(const char* input, const SOCKET &socket, char buffer[], const int input_size = BUFFER_SIZE) {
+    std::cout << "Write your " << input << ": " << std::endl;
+    fgets(buffer, input_size, stdin);
+    send(socket, buffer, strlen(buffer), 0);
+}
+
 void remove_comm(SOCKET socket) {
     std::string buffer(BUFFER_SIZE, '\0');
 
     int received_bytes = recv(socket, buffer.data(), BUFFER_SIZE, 0);
-
     buffer.resize(received_bytes);
 
     if(buffer == OK_MESSAGE)
         return;
 
-    printf("You're removing the current repository, tell somewhere else to go:\n");
+    if(buffer == MAIN_EXCEPTION) {
+        std::cout << "Main repository cannot be deleted." << std::endl;
+        return;
+    }
+
+    std::cout <<  "You're removing the current repository, tell somewhere else to go:\n" << std::endl;
 
     std::getline(std::cin, buffer);
 
@@ -82,32 +84,33 @@ static inline void handle_command(SOCKET socket, comm_line command) {
     else if(command.comm == "repos")
         comm_output(socket);
     else {
-        PRINT_RED;
+        //PRINT_RED;
         system((command.comm + " " + LOCAL_DIR + command.arg).c_str());
     }
 
     PRINT_DEFAULT;
 }
 
-void send_messages(const SOCKET &network_socket, std::string &client_buffer) {
+void send_messages(const SOCKET &socket, std::string &buffer) {
     comm_line command = comm_line();
-    get_login(network_socket, client_buffer.data());
+    send_client_input("name", socket, buffer.data(), NAME_SIZE);
 
-    fill_string(client_buffer);
+    buffer.resize(BUFFER_SIZE);
+    fill_string(buffer);
 
-    recv(network_socket, client_buffer.data(), BUFFER_SIZE, 0);
+    recv(socket, buffer.data(), BUFFER_SIZE, 0);
 
     std::cout << "\nWrite your command:" << std::endl;
 
-    while (std::getline(std::cin, client_buffer)) {
-        send(network_socket, client_buffer.data(), BUFFER_SIZE, 0);
+    while (std::getline(std::cin, buffer)) {
+        send(socket, buffer.data(), BUFFER_SIZE, 0);
 
-        if(client_buffer == "exit") 
+        if(buffer == "exit") 
             return;
 
-        command.format_from_buffer(client_buffer);
+        command.format_from_buffer(buffer);
 
-        handle_command(network_socket, command);
+        handle_command(socket, command);
     }
 }
 

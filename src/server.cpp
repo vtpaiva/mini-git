@@ -44,7 +44,14 @@ inline void change_to_external_repo(comm_line command, client &client) {
 }
 
 void remove_comm(SOCKET socket, comm_line command, client &client) {
-    if(fs::is_directory(REPOS_DIR + client.name + "/" + command.arg)) {
+    if(fs::is_directory(client.curr_dir + "/" + command.arg))
+        fs::remove_all(client.curr_dir + "/" + command.arg);
+    else if(fs::is_directory(REPOS_DIR + client.name + "/" + command.arg)) {
+        if(command.arg == "main") {
+            send(socket, MAIN_EXCEPTION, sizeof(MAIN_EXCEPTION), 0);
+            return;
+        }
+
         std::string repo_to_delete(REPOS_DIR + client.name + "/" + command.arg);
 
         if(client.curr_dir == repo_to_delete) {
@@ -101,7 +108,7 @@ void execute_comm(SOCKET socket, client curr_client, std::string terminal_comm) 
 
     pclose(pipe);
 
-    send(socket, &"EOF", strlen("EOF"), 0);
+    send(socket, &END, sizeof(END), 0);
 }
 
 static inline void handle_command(comm_line command, client &curr_client, SOCKET socket) {
@@ -133,16 +140,35 @@ static inline void handle_command(comm_line command, client &curr_client, SOCKET
         execute_comm(socket, curr_client, command.arg);
 }
 
-int accept_client(SOCKET server_socket, SOCKET client_socket, std::string buffer) {
-    comm_line command = comm_line();
-    client *new_client = new client(client_socket);
+void get_initial_repo(SOCKET socket, client &client, std::string& buffer) {
+    int received_bytes;
 
-    send(client_socket, LOGIN_MESSAGE.data(), BUFFER_SIZE, 0);
+    if(fs::exists(REPOS_DIR + client.name)) {
+        send(socket, &RECEIVED, sizeof(RECEIVED), 0);
+        execute_comm(socket, client, "ls -C " + REPOS_DIR + client.name);
+    } else
+        send(socket, &NOT_RECEIVED, sizeof(NOT_RECEIVED), 0);
+
+    received_bytes = recv(socket, buffer.data(),BUFFER_SIZE, 0) - 1;
+    buffer.resize(received_bytes);
+
+    change_repo(buffer, std::ref(client));
+
+    buffer.resize(BUFFER_SIZE);
+    fill_string(buffer);
+}
+
+int accept_client(SOCKET socket, std::string buffer) {
+    comm_line command = comm_line();
+    client *new_client = new client(socket);
+
+    send(socket, LOGIN_MESSAGE.data(), BUFFER_SIZE, 0);
     std::cout << "Login: \"" << new_client -> name << "\"!" << std::endl;
 
+    std::filesystem::create_directory(REPOS_DIR + new_client -> name);
     std::filesystem::create_directory(new_client -> curr_dir);
 
-    for(int received_bytes; (received_bytes = recv(client_socket, buffer.data(), BUFFER_SIZE, 0)) > -1; buffer.resize(BUFFER_SIZE)) {
+    for(int received_bytes; (received_bytes = recv(socket, buffer.data(), BUFFER_SIZE, 0)) > -1; buffer.resize(BUFFER_SIZE)) {
         resize_till_null(buffer);
 
         if(buffer == "exit") 
@@ -150,7 +176,7 @@ int accept_client(SOCKET server_socket, SOCKET client_socket, std::string buffer
 
         command.format_from_buffer(buffer);
 
-        handle_command(command, std::ref(*new_client), client_socket);
+        handle_command(command, std::ref(*new_client), socket);
     }
 
     std::cout << "Logout: \"" << new_client -> name << "\"!" << std::endl;
@@ -160,7 +186,7 @@ int accept_client(SOCKET server_socket, SOCKET client_socket, std::string buffer
 
 void handle_connect(SOCKET server_socket, SOCKET client_socket, std::string buffer, std::vector<std::thread> &threads) {
     while(client_socket = accept(server_socket, nullptr, nullptr)) {
-        threads.push_back(std::thread(accept_client, server_socket, client_socket, buffer));
+        threads.push_back(std::thread(accept_client, client_socket, buffer));
     }
 }
 

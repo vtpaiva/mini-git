@@ -19,18 +19,17 @@ constexpr int PORT = 8080;
 constexpr int MAX_BACKLOG = 32;
 constexpr int BUFFER_SIZE = 1024;
 constexpr int NAME_SIZE = 16;
-constexpr int PASSWORD_SIZE = 32;
 constexpr int COMMAND_SIZE = 8;
 constexpr int ARG_SIZE = 64;
-constexpr int CLIENT_SIZE = sizeof(char) + NAME_SIZE + PASSWORD_SIZE;
+constexpr int CLIENT_SIZE = sizeof(char) + NAME_SIZE + ARG_SIZE;
 
 const std::string LOCAL_DIR = "local/";
 const std::string REPOS_DIR = "repos/";
 constexpr const char RECEIVED = '1';
 constexpr const char NOT_RECEIVED = '\0';
-constexpr const char VALID = '1';
-constexpr const char INVALID = '0';
 constexpr const char FILL_CHAR = '$';
+constexpr const char FILE_FLAG = '0';
+constexpr const char FOLDER_FLAG = '1';
 constexpr const char* SOCKET_CREATION_ERROR = "Socket";
 constexpr const char* BIND_ERROR = "Bind";
 constexpr const char* LISTEN_ERROR = "Listen";
@@ -40,6 +39,8 @@ constexpr const char* ADRESS_ERROR = "Adress";
 constexpr const char* RECV_ERROR = "Message receiving";
 constexpr const char* CURR_REPO_ERROR = "This is your current repository, tell somewhere to go:\n";
 constexpr const char* OK_MESSAGE = "Sent!";
+constexpr const char* MAIN_EXCEPTION = "main_exc";
+constexpr const char END = 'E';
 
 const struct sockaddr_in default_server_addr = {.sin_family = AF_INET, 
                                                 .sin_port = htons(PORT),
@@ -85,85 +86,20 @@ inline void resize_till_null(std::string &st) {
         st.resize(pos);
 }
 
-void receive_file(SOCKET socket, const std::string& file_name) {
-    int bytesReceived, file_size;
-    std::ofstream file(file_name, std::ios::binary);
-
-    if (!file) 
-        return perror("Could not open file");
-
-    read(socket, &file_size, sizeof(file_size));
-
-    file_size = ntohl(file_size);
-
-    std::string buffer(BUFFER_SIZE, '\0');
-
-    for (int total = 0; total < file_size; total += bytesReceived) {
-        bytesReceived = recv(socket, buffer.data(), BUFFER_SIZE, 0);
-        send(socket, &RECEIVED, sizeof(RECEIVED), 0);
-
-        file.write(buffer.data(), bytesReceived);
-    }
-
-    if (bytesReceived == -1) {
-        send(socket, &NOT_RECEIVED, sizeof(NOT_RECEIVED), 0);
-
-        perror("Erro ao receber dados");
-    }
-
-
-    file.close();
-}
-
-void send_file(SOCKET socket, const std::string& file_name) {
-    char confirm = '1';
-    int bytes_sent, file_size;
-    std::ifstream file(file_name, std::ios::binary | std::ios::ate);
-
-    if (!file)
-        return perror("File not found");
-
-    file_size = htonl(file.tellg());
-    file.seekg(0, std::ios::beg);
-
-    send(socket, &file_size, sizeof(file_size), 0);
-
-    std::string buffer(BUFFER_SIZE, '\0'); 
-
-    while(file.read(buffer.data(), buffer.size())) {
-        if ((bytes_sent = send(socket, buffer.data(), BUFFER_SIZE, 0)) == -1 || !confirm) 
-            return perror("Erro ao enviar últimos dados");
-
-        recv(socket, &confirm, sizeof(confirm), 0);
-    }
-
-    if(file.gcount() > 0) {
-        if ((bytes_sent = send(socket, buffer.data(), file.gcount(), 0)) == -1 || !confirm) 
-            return perror("Erro ao enviar últimos dados");
-
-        recv(socket, &confirm, sizeof(confirm), 0);
-    }
-
-    file.close();
-}
-
 class client {
     public:
 
-        std::string name, password;
-        std::string curr_dir;
+        std::string name, curr_dir;
 
-        client(SOCKET &client_socket) : name(std::string(NAME_SIZE,0)), password(PASSWORD_SIZE, 0), curr_dir(std::string(ARG_SIZE,0)){
+        client(SOCKET &client_socket) : name(std::string(NAME_SIZE,0)), curr_dir(std::string(ARG_SIZE,0)){
             int received_bytes;
 
             received_bytes = recv(client_socket, name.data(), NAME_SIZE, 0) - 1;
             this -> name.resize(received_bytes);
 
-            received_bytes = recv(client_socket, password.data(), PASSWORD_SIZE, 0) - 1;
-            this -> password.resize(received_bytes);
-
-            this -> curr_dir = REPOS_DIR + this -> name;
+            this -> curr_dir = REPOS_DIR + this -> name + "/main";
         }
+
     private:
 };
 
@@ -189,12 +125,6 @@ class comm_line {
             fill_string(this -> arg);
         }
 
-        void to_line(std::string &buffer) {
-            std::snprintf(buffer.data(), BUFFER_SIZE, "%s %s\0", this->comm.c_str(), this->arg.c_str());
-
-            buffer.resize(buffer.find('\0'));
-        }
-
         void from_line(std::string &buffer) {
             const char *model = (buffer.find('\"') == std::string::npos) ? "%s %s" : "%s \"%[^\"]\"";
 
@@ -210,60 +140,131 @@ class comm_line {
     private:
 };
 
-void send_files(SOCKET socket, std::string dir_path, comm_line command) {
-    char flag;   
-    int number_files = 0;
-    std::string curr_file, origin_path;
+void send_file(SOCKET socket, const std::string& file_name) {
+    char flag;
+    std::string buffer(BUFFER_SIZE, '\0');
+    std::ifstream file(file_name, std::ios::binary | std::ios::ate);
 
-    origin_path = (command.arg == "*") ? dir_path : dir_path + "/" + command.arg;
+    if (!file)
+        return perror("File not found");
 
-    if(fs::is_directory(origin_path)) {
-        for (const auto& entry : fs::directory_iterator(origin_path))
-            number_files++;
+    int32_t file_size_network = htonl(file.tellg());
+    file.seekg(0, std::ios::beg);
 
-        number_files = htonl(number_files);
+    send(socket, &file_size_network, sizeof(file_size_network), 0);
 
-        send(socket, &number_files, sizeof(number_files), 0);
+    while(file) {
+        file.read(buffer.data(), buffer.size());
+        std::streamsize bytes_read = file.gcount();
 
-        for (const auto& entry : fs::directory_iterator(origin_path)) {
-            curr_file = entry.path().filename().string();
+        if (bytes_read > 0) {
+            int bytes_sent = send(socket, buffer.data(), static_cast<int>(bytes_read), 0);
 
-            send(socket, curr_file.data(), sizeof(curr_file.data()), 0);
+            if (bytes_sent == -1)
+                return perror("Sending data error");
+
             recv(socket, &flag, sizeof(flag), 0);
 
-            if(flag)
-                send_file(socket, origin_path + "/" + entry.path().filename().string());
+            if (flag != RECEIVED)
+                return perror("Confirmation not received");
         }
-    } else {
-        number_files = htonl(1);
-        send(socket, &number_files, sizeof(int), 0);
+    }
 
-        send(socket, command.arg.data(), size(command.arg), 0);
-        recv(socket, &flag, sizeof(flag), 0);
+    file.close();
+}
 
-        if(flag)
-            send_file(socket, origin_path);
+void receive_file(SOCKET socket, const std::string& file_name) {
+    int ret, total_received = 0, bytes_to_receive;
+    int32_t file_size_network;
+    std::string buffer(BUFFER_SIZE, '\0');
+
+    if((ret = recv(socket, reinterpret_cast<char*>(&file_size_network), sizeof(file_size_network), 0)) <= 0) 
+        return perror("Failed to receive file size");
+
+    int32_t file_size = ntohl(file_size_network);
+
+    std::ofstream file(file_name, std::ios::binary);
+
+    if(!file) 
+        return perror("Could not open file");
+
+    while(total_received < file_size) {
+        bytes_to_receive = std::min(BUFFER_SIZE, file_size - total_received);
+
+        if((ret = recv(socket, buffer.data(), bytes_to_receive, 0)) <= 0) {
+            file.close();
+            return perror("Failed to receive file data");
+        }
+
+        file.write(buffer.data(), ret);
+        total_received += ret;
+
+        send(socket, &RECEIVED, sizeof(RECEIVED), 0);
+    }
+
+    file.close();
+}
+
+void send_entry(SOCKET socket, const std::string& entry_path, const std::string& base_path) {
+    std::string relative_path = fs::relative(entry_path, base_path).string();
+    uint32_t path_length_network = htonl(relative_path.size());
+
+    if(fs::is_directory(entry_path)) {
+        send(socket, &FOLDER_FLAG, sizeof(FOLDER_FLAG), 0);
+        send(socket, &path_length_network, sizeof(path_length_network), 0);
+        send(socket, relative_path.data(), relative_path.size(), 0);
+
+        for (const auto& entry : fs::directory_iterator(entry_path))
+            send_entry(socket, entry.path().string(), base_path);
+
+    } else if(fs::is_regular_file(entry_path)) {
+        send(socket, &FILE_FLAG, sizeof(FILE_FLAG), 0);
+        send(socket, &path_length_network, sizeof(path_length_network), 0);
+        send(socket, relative_path.data(), relative_path.size(), 0);
+
+        send_file(socket, entry_path);
     }
 }
 
-void receive_files(SOCKET socket, std::string dir_path) {
-    int number_files;
-    std::string buffer(BUFFER_SIZE, '\0');
+void send_files(SOCKET socket, const std::string& dir_path, const comm_line& command) {
+    std::string origin_path = (command.arg == "*") ? dir_path : dir_path + "/" + command.arg;
 
-    read(socket, &number_files, sizeof(number_files));
+    if(fs::exists(origin_path)) {
+        send_entry(socket, origin_path, dir_path);
 
-    number_files = ntohl(number_files);
+        char type = END;
+        send(socket, &type, sizeof(type), 0);
+    } else
+        perror("Path does not exist");
+}
 
-    for_each(number_files) {
-        recv(socket, buffer.data(), BUFFER_SIZE, 0);
-        send(socket, &RECEIVED, sizeof(char), 0);
+void receive_files(SOCKET socket, const std::string& dir_path) {
+    int ret;
+    char type;
 
-        resize_till_null(buffer);
+    while(ret = recv(socket, &type, sizeof(type), 0)) {
+        if (type == END)
+            break;
 
-        receive_file(socket, dir_path + buffer);
+        uint32_t path_length_network;
+    
+        if((ret = recv(socket, reinterpret_cast<char*>(&path_length_network), sizeof(path_length_network), 0)) <= 0) 
+            return perror("Failed to receive path length");
 
-        buffer.resize(BUFFER_SIZE);
-        fill_string(buffer);
+        uint32_t path_length = ntohl(path_length_network);
+        std::string relative_path(path_length, '\0');
+
+        if((ret = recv(socket, &relative_path[0], path_length, 0)) <= 0) 
+            return perror("Failed to receive path");
+
+        std::string full_path = dir_path + "/" + relative_path;
+
+        if(type == FOLDER_FLAG)
+            fs::create_directories(full_path);
+        else if (type == FILE_FLAG)
+            receive_file(socket, full_path);
+        else 
+            perror("Unknown type received");
     }
 }
 
