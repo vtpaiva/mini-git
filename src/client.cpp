@@ -84,7 +84,7 @@ static inline void handle_command(SOCKET socket, comm_line command) {
     else if(command.comm == "repos")
         comm_output(socket);
     else {
-        //PRINT_RED;
+        PRINT_RED;
         system((command.comm + " " + LOCAL_DIR + command.arg).c_str());
     }
 

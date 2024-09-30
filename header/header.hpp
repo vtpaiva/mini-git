@@ -229,13 +229,13 @@ void send_entry(SOCKET socket, const std::string& entry_path, const std::string&
 void send_files(SOCKET socket, const std::string& dir_path, const comm_line& command) {
     std::string origin_path = (command.arg == "*") ? dir_path : dir_path + "/" + command.arg;
 
-    if(fs::exists(origin_path)) {
+    if(fs::exists(origin_path)) 
         send_entry(socket, origin_path, dir_path);
-
-        char type = END;
-        send(socket, &type, sizeof(type), 0);
-    } else
+    else
         perror("Path does not exist");
+
+
+    send(socket, &END, sizeof(END), 0);
 }
 
 void receive_files(SOCKET socket, const std::string& dir_path) {
@@ -248,7 +248,7 @@ void receive_files(SOCKET socket, const std::string& dir_path) {
 
         uint32_t path_length_network;
     
-        if((ret = recv(socket, reinterpret_cast<char*>(&path_length_network), sizeof(path_length_network), 0)) <= 0) 
+        if((ret = recv(socket, reinterpret_cast<char*>(&path_length_network), sizeof(path_length_network), 0)) < 1) 
             return perror("Failed to receive path length");
 
         uint32_t path_length = ntohl(path_length_network);

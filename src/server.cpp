@@ -88,7 +88,7 @@ void remove_comm(SOCKET socket, comm_line command, client &client) {
 
 void execute_comm(SOCKET socket, client curr_client, std::string terminal_comm) {
     FILE* pipe;
-    char flag = '1';
+    char flag = RECEIVED;
     std::string buffer(BUFFER_SIZE, '\0');
 
     pipe = popen(terminal_comm.c_str(), "r");
