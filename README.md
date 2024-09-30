@@ -26,6 +26,10 @@ This application is developed using C++ and utilizes the sockets library for com
 
 When a client connects to the server using a specified name, they are redirected to their `main` repository. The client can then use various commands through the terminal to navigate and interact with the repository environment.
 
+The user will have a `local` folder that will be used as a local directory to be referenced in push/pull operations and terminal commands. This folder will simulate the local machine and the reference directory on the server machine for the client will be the current repository folder.
+
+The server will have a `repos` folder that will be used as your machine. All repositories will be stored in this directory.
+
 ## Command Table
 
 | Command           | Description |
