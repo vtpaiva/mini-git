@@ -38,7 +38,7 @@ When a client connects to the server using a specified name, they are redirected
 | `show 'file_name'`    | Displays the contents of a file from the server machine. |
 | `repo 'repo_name'`    | Switches to another repository or creates a new one if `repo_name` does not exist.<br>If the argument is empty, displays the name of the current repository. |
 | `repos`               | Lists all of the client's repositories. |
-| `xrepo 'repo_name'`   | Switches the current repository to that of another client. |
+| `xrepo 'user_name/repo_name'`   | Switches the current repository to that of another client. |
 | `comm "command"`      | Executes a specified command on the server machine. (Use with caution!) |
 
 ## Authors
