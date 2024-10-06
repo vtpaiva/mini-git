@@ -16,7 +16,7 @@ void remove_comm(SOCKET socket);
 void show_repo(SOCKET socket);
 
 // Function to handle the client's command.
-static inline void handle_command(SOCKET socket, comm_line command);
+static inline void handle_command(SOCKET socket, command_line command);
 
 // Function to handle the client's command sending to the server.
 void handle_connection(const SOCKET &socket, std::string &buffer);

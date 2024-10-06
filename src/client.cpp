@@ -99,7 +99,7 @@ void show_repo(SOCKET socket) {
 }
 
 // Function to handle the client's command.
-void handle_command(SOCKET socket, comm_line command) {
+void handle_command(SOCKET socket, command_line command) {
     if(command.comm == "create")
         std::cout << "File created!" << std::endl;
     else if(command.comm == "delete") {
@@ -142,7 +142,7 @@ void handle_command(SOCKET socket, comm_line command) {
 
 // Function to handle the client's command sending to the server.
 void handle_connection(const SOCKET &socket, std::string &buffer) {
-    comm_line command = comm_line();
+    command_line command = command_line();
     get_client_input("name", socket, buffer.data(), NAME_SIZE);
 
     buffer.resize(BUFFER_SIZE);

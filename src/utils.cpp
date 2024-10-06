@@ -95,7 +95,7 @@ void send_entry(SOCKET socket, const std::string& entry_path, const std::string&
 }
 
 // Sends multiple files via socket.
-void send_files(SOCKET socket, const std::string& dir_path, const comm_line& command) {
+void send_files(SOCKET socket, const std::string& dir_path, const command_line& command) {
     std::string origin_path = (command.arg == "*") ? dir_path : dir_path + "/" + command.arg;
 
     if(fs::exists(origin_path)) 

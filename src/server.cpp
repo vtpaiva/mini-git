@@ -47,7 +47,7 @@ std::string curr_repo(client client) {
 }
 
 // Create a new file in the client's repository.
-void add_file(comm_line command, client &client) {
+void add_file(command_line command, client &client) {
     std::string filename(client.curr_dir + "/" + command.arg);
     std::ofstream client_file(filename);
 
@@ -61,7 +61,7 @@ void add_file(comm_line command, client &client) {
 }
 
 // Function to change the client's current repository by the command.
-inline void change_repo(comm_line command, client &client) {
+inline void change_repo(command_line command, client &client) {
     if(!fs::is_directory(REPOS_DIR + client.name + "/" + command.arg))
         fs::create_directory(REPOS_DIR + client.name + "/" + command.arg);
 
@@ -77,13 +77,13 @@ inline void change_repo(std::string repo_name, client &client) {
 }
 
 // Function to change the client's current repository to another user's repository.
-inline void change_to_external_repo(comm_line command, client &client) {
+inline void change_to_external_repo(command_line command, client &client) {
     if(fs::is_directory(REPOS_DIR + command.arg))
         client.curr_dir = REPOS_DIR + command.arg;
 }
 
 // Function to execute the command to remove a file/directory/repository.
-void remove_comm(SOCKET socket, comm_line command, client &client) {
+void remove_comm(SOCKET socket, command_line command, client &client) {
     // If the name matches, remove directory.
     if(fs::is_directory(client.curr_dir + "/" + command.arg))
         fs::remove_all(client.curr_dir + "/" + command.arg);
@@ -132,7 +132,7 @@ void remove_comm(SOCKET socket, comm_line command, client &client) {
 }
 
 // Forks another user's repository.
-void fork_repo(SOCKET socket, client &client, comm_line command) {
+void fork_repo(SOCKET socket, client &client, command_line command) {
     // Gets repository name.
     std::string repo_name(BUFFER_SIZE, '\0');
 
@@ -176,7 +176,7 @@ void execute_comm(SOCKET socket, client curr_client, std::string terminal_comm) 
 }
 
 // Function to handle the commands from the client.
-static inline void handle_command(comm_line command, client &curr_client, SOCKET socket) {
+static inline void handle_command(command_line command, client &curr_client, SOCKET socket) {
     std::string filename = curr_client.curr_dir + "/" + command.arg, tmp;
 
     if (command.comm == "create")
@@ -209,7 +209,7 @@ static inline void handle_command(comm_line command, client &curr_client, SOCKET
 
 // Function to handle the connection from the client.
 int accept_client(SOCKET socket, std::string buffer) {
-    comm_line command = comm_line();
+    command_line command = command_line();
     client *new_client = new client(socket);
 
     send(socket, LOGIN_MESSAGE.data(), BUFFER_SIZE, 0);

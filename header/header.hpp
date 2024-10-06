@@ -12,6 +12,7 @@
 #include <thread>
 #include <vector>
 #include <regex>
+#include <array>
 
 namespace fs = std::filesystem;
 
@@ -80,14 +81,14 @@ class client {
 };
 
 // Command line class, representing a command inputed by the client.
-class comm_line {
+class command_line {
     public:
 
         std::string comm, arg;
 
-        comm_line() : comm(COMMAND_SIZE, '\0') {}
+        command_line() : comm(COMMAND_SIZE, '\0') {}
 
-        comm_line(std::string command, std::string arg) : comm(command), arg(arg) {}
+        command_line(std::string command, std::string arg) : comm(command), arg(arg) {}
 
         void resize_fields() {
             resize_till_null(this -> comm);
@@ -130,7 +131,7 @@ void receive_file(SOCKET socket, const std::string& file_name);
 void send_entry(SOCKET socket, const std::string& entry_path, const std::string& base_path);
 
 // Sends multiple files via socket.
-void send_files(SOCKET socket, const std::string& dir_path, const comm_line& command);
+void send_files(SOCKET socket, const std::string& dir_path, const command_line& command);
 
 // Receives multiple files via socket.
 void receive_files(SOCKET socket, const std::string& dir_path);

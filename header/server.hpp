@@ -9,28 +9,28 @@ const std::string LOGIN_MESSAGE = "Login completed!";
 std::string curr_repo(client client);
 
 // Create a new file in the client's repository.
-void add_file(comm_line command, client &client);
+void add_file(command_line command, client &client);
 
 // Function to change the client's current repository by the command.
-void change_repo(comm_line command, client &client);
+void change_repo(command_line command, client &client);
 
 // Function to change the client's current repository by the repos's name.
 void change_repo(std::string repo_name, client &client);
 
 // Function to change the client's current repository to another user's repository.
-void change_to_external_repo(comm_line command, client &client);
+void change_to_external_repo(command_line command, client &client);
 
 // Function to execute the command to remove a file/directory/repository.
-void remove_comm(SOCKET socket, comm_line command, client &client);
+void remove_comm(SOCKET socket, command_line command, client &client);
 
 // Forks another user's repository.
-void fork_repo(SOCKET socket, client &client, comm_line command);
+void fork_repo(SOCKET socket, client &client, command_line command);
 
 // Function to execute a command and send the output to the client.
 void execute_comm(SOCKET socket, client curr_client, std::string terminal_comm);
 
 // Function to handle the commands from the client.
-static void handle_command(comm_line command, client &curr_client, SOCKET socket);
+static void handle_command(command_line command, client &curr_client, SOCKET socket);
 
 // Function to handle the connection from the client.
 int accept_client(SOCKET socket, std::string buffer);
