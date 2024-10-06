@@ -1,6 +1,6 @@
 all:
-	g++ -o server src/server.cpp
-	g++ -o client src/client.cpp
+	g++ -o server src/server.cpp src/utils.cpp
+	g++ -o client src/client.cpp src/utils.cpp
 
 client:
 	g++ -o client src/client.cpp

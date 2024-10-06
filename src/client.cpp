@@ -1,4 +1,30 @@
-#include "../header/header.hpp"
+#include "../header/client.hpp"
+
+int main(int argc, char **argv) {
+    SOCKET network_socket = 0;
+    std::string client_buffer(BUFFER_SIZE, '\0');
+
+    // Initalizes the network socket.
+    exit_if_error(network_socket = socket(AF_INET, SOCK_STREAM, 0), 
+                  SOCKET_CREATION_ERROR);
+
+    struct sockaddr_in serv_addr = default_client_addr;
+
+    // Put your ip adress in here.
+    const char *client_ip = "127.0.0.1";
+
+    exit_if_error(inet_pton(AF_INET, client_ip, &serv_addr.sin_addr), 
+                  ADRESS_ERROR);
+
+    exit_if_error(connect(network_socket, (struct sockaddr *)&serv_addr, sizeof(serv_addr)),
+                  CONNECT_ERROR);
+
+    handle_connection(network_socket, client_buffer);
+
+    close(network_socket);
+
+    exit(EXIT_SUCCESS);
+}
 
 // Function to print the output from a command executed by the server.
 void comm_output(SOCKET socket) {
@@ -30,7 +56,7 @@ void comm_output(SOCKET socket) {
 }
 
 // Send a certain input to the server from the stdin.
-void get_client_input(const char* input, const SOCKET &socket, char buffer[], const int input_size = BUFFER_SIZE) {
+void get_client_input(const char* input, const SOCKET &socket, char buffer[], const int input_size) {
     std::cout << "Write your " << input << ": " << std::endl;
     fgets(buffer, input_size, stdin);
     send(socket, buffer, strlen(buffer), 0);
@@ -69,19 +95,25 @@ void show_repo(SOCKET socket) {
 
     resize_till_null(buffer);
 
-    std::cout << buffer << std::endl;
+    std::cout << "Current repository: "  + buffer << std::endl;
 }
 
 // Function to handle the client's command.
-static inline void handle_command(SOCKET socket, comm_line command) {
-    if(command.comm == "create" || command.comm == "xrepo" || command.comm == "fork")
-        /*IGNORE*/;
-    else if(command.comm == "delete") 
+void handle_command(SOCKET socket, comm_line command) {
+    if(command.comm == "create")
+        std::cout << "File created!" << std::endl;
+    else if(command.comm == "delete") {
         remove_comm(socket);
-    else if(command.comm == "push") 
+        std::cout << "Succesfully deleted!" << std::endl;
+    }
+    else if(command.comm == "push") {
         send_files(socket, LOCAL_DIR, command);
-    else if(command.comm == "pull")
+        std::cout << "Files sent!" << std::endl;
+    }
+    else if(command.comm == "pull") {
         receive_files(socket, LOCAL_DIR);
+        std::cout << "Files received!" << std::endl;
+    }
     else if(command.comm == "files")
         comm_output(socket);
     else if(command.comm == "show")
@@ -91,9 +123,15 @@ static inline void handle_command(SOCKET socket, comm_line command) {
     else if(command.comm == "repo") {
         if(command.arg == "") 
             show_repo(socket);
+        else 
+            std::cout << "Repository changed to: " + command.arg << std::endl;
     }
     else if(command.comm == "repos")
         comm_output(socket);
+    else if(command.comm == "xrepo") 
+        std::cout << "Repository changed to: " + command.arg << std::endl;
+    else if(command.comm == "fork")
+        std::cout << "Repository " + command.arg + " forked!" << std::endl;
     else {
         PRINT_RED;
         system((command.comm + " " + LOCAL_DIR + command.arg).c_str());
@@ -125,30 +163,4 @@ void handle_connection(const SOCKET &socket, std::string &buffer) {
 
         handle_command(socket, command);
     }
-}
-
-int main(int argc, char **argv) {
-    SOCKET network_socket = 0;
-    std::string client_buffer(BUFFER_SIZE, '\0');
-
-    // Initalizes the network socket.
-    exit_if_error(network_socket = socket(AF_INET, SOCK_STREAM, 0), 
-                  SOCKET_CREATION_ERROR);
-
-    struct sockaddr_in serv_addr = default_client_addr;
-
-    // Put your ip adress in here.
-    const char *client_ip = "127.0.0.1";
-
-    exit_if_error(inet_pton(AF_INET, client_ip, &serv_addr.sin_addr), 
-                  ADRESS_ERROR);
-
-    exit_if_error(connect(network_socket, (struct sockaddr *)&serv_addr, sizeof(serv_addr)),
-                  CONNECT_ERROR);
-
-    handle_connection(network_socket, client_buffer);
-
-    close(network_socket);
-
-    exit(EXIT_SUCCESS);
 }

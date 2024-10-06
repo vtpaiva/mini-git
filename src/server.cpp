@@ -1,6 +1,41 @@
-#include "../header/header.hpp"
+#include "../header/server.hpp"
 
-const std::string LOGIN_MESSAGE = "Login completed!";
+int main(int argc, char **argv) {
+    int n_bind, n_listen;
+    SOCKET server_socket, client_socket;
+    std::vector<std::thread> threads;
+
+    // Initialize the server socket.
+    exit_if_error(server_socket = socket(AF_INET, SOCK_STREAM, 0), 
+                  SOCKET_CREATION_ERROR);
+
+    struct sockaddr_in serv_addr = default_server_addr;
+    memset(serv_addr.sin_zero, '0', 8);
+
+    exit_if_error(n_bind = bind(server_socket, (sockaddr*) &serv_addr, sizeof(sockaddr_in)), 
+                  BIND_ERROR);
+
+    exit_if_error(n_listen = listen(server_socket, MAX_BACKLOG), 
+                  LISTEN_ERROR);
+
+    std::cout << "Waiting for connections..." << std::endl;
+
+    // Creating threads to handle input and connections from the clients.
+    std::thread input_thread(handle_input);
+    std::thread connect_thread(handle_connect, server_socket, client_socket, std::string(1024, '\0'), std::ref(threads));
+
+    input_thread.join();
+
+    for(auto& th: threads) 
+        th.join();
+
+    std::cout << "Shutting down the server..." << std::endl;
+
+    close(client_socket);
+    close(server_socket);
+
+    exit(EXIT_SUCCESS);
+}
 
 // Return the client's current repository name.
 std::string curr_repo(client client) {
@@ -121,11 +156,11 @@ void execute_comm(SOCKET socket, client curr_client, std::string terminal_comm) 
     std::string buffer(BUFFER_SIZE, '\0');
 
     pipe = popen(terminal_comm.c_str(), "r");
-        
-    if (!pipe)
-        return perror("Command error");
 
-    // While is data left, keep sending it to the client.
+    if (!pipe)
+        return;
+
+    // While there is data left, keep sending it to the client.
     while (fgets(buffer.data(), BUFFER_SIZE, pipe)) {
         resize_till_null(buffer);
 
@@ -214,43 +249,9 @@ void handle_input() {
 
     while(std::getline(std::cin, input)) {
         if (input == "exit")
-            return;            
+            return;   
+
+
+        std::cout << "Unknown command!" << std::endl;         
     }
-}
-
-int main(int argc, char **argv) {
-    int n_bind, n_listen;
-    SOCKET server_socket, client_socket;
-    std::vector<std::thread> threads;
-
-    // Initialize the server socket.
-    exit_if_error(server_socket = socket(AF_INET, SOCK_STREAM, 0), 
-                  SOCKET_CREATION_ERROR);
-
-    struct sockaddr_in serv_addr = default_server_addr;
-    memset(serv_addr.sin_zero, '0', 8);
-
-    exit_if_error(n_bind = bind(server_socket, (sockaddr*) &serv_addr, sizeof(sockaddr_in)), 
-                  BIND_ERROR);
-
-    exit_if_error(n_listen = listen(server_socket, MAX_BACKLOG), 
-                  LISTEN_ERROR);
-
-    std::cout << "Waiting for connections..." << std::endl;
-
-    // Creating threads to handle input and connections from the clients.
-    std::thread input_thread(handle_input);
-    std::thread connect_thread(handle_connect, server_socket, client_socket, std::string(1024, '\0'), std::ref(threads));
-
-    input_thread.join();
-
-    for(auto& th: threads) 
-        th.join();
-
-    std::cout << "Shutting down the server..." << std::endl;
-
-    close(client_socket);
-    close(server_socket);
-
-    exit(EXIT_SUCCESS);
 }
