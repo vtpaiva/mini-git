@@ -42,20 +42,21 @@ The server will have a `repos` folder that will be used as your machine. All rep
 
 ## Command Table
 
-| Command           | Description |
-|-------------------|-------------|
-| `create 'file_name'`  | Creates a file in the repository on the server machine. |
-| `delete 'name'`       | Deletes a file, directory, or repository on the server machine. |
-| `push 'name'`         | Simulates Git's `push` functionality by sending files or directories to the server.<br>If the argument is `*`, the entire local directory is sent by the client. |
-| `pull 'name'`         | Simulates Git's `pull` functionality by requesting files or directories from the server.<br>If the argument is `*`, the entire current repository directory is sent by the server. |
-| `files 'folder'`      | Displays all files within a specified folder on the server machine.<br>If the argument is empty, all contents of the current repository are shown. |
-| `show 'file_name'`    | Displays the contents of a file from the server machine. |
-| `repo 'repo_name'`    | Switches to another repository or creates a new one if `repo_name` does not exist.<br>If the argument is empty, displays the name of the current repository. |
-| `repos`               | Lists all of the client's repositories. |
-| `xrepo 'user_name/repo_name'`   | Switches the current repository to that of another client. |
-| `fork 'user_name/repo_name`      | Forks another user's repository, creating a repository on the user's folder named "fork-repo_name". |
-| `comm "command"`      | Executes a specified command on the server machine. (Use with caution!) |
-| `exit`      | Disconnects client from the server (on client's terminal) or shut the server down (on server's terminal). |
+| Command             | Description |
+|-------------------------|-------------|
+| `create 'file_name'`  | Creates a file in the repository on the server. |
+| `delete 'name'`       | Deletes a file, directory, or repository on the server. |
+| `push 'name'`         | Sends files or directories to the server, simulating `git push`. `*` sends the entire local directory. |
+| `pull 'name'`         | Requests files or directories from the server, simulating `git pull`. `*` retrieves the entire repository. |
+| `files 'folder'`      | Lists all files within a specified folder. If empty, lists the entire repository. |
+| `show 'file_name'`    | Displays the contents of a file from the server. |
+| `repo 'repo_name'`    | Switches to another repository or creates a new one if it doesn't exist. If empty, shows the current repository. |
+| `repos`               | Lists all of the user's repositories. |
+| `xrepo 'user/repo'`   | Switches to another user's repository. |
+| `fork 'user/repo'`    | Forks another user's repository, creating "fork-repo_name". |
+| `comm "command"`      | Executes a command on the server. (Use with caution!) |
+| `exit`                | Disconnects the client or shuts down the server. |
+
 
 ## Authors
 
