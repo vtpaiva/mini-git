@@ -42,7 +42,9 @@ const std::string REPOS_DIR = "repos/";
 
 const struct sockaddr_in default_server_addr = {.sin_family = AF_INET, 
                                                 .sin_port = htons(PORT),
-                                                .sin_addr = {s_addr: INADDR_ANY}},
+                                                .sin_addr = {s_addr: INADDR_ANY},
+                                                .sin_zero = {'0', '0', '0', '0', '0', '0', '0', '0'}},
+
                          default_client_addr = {.sin_family = AF_INET, 
                                                 .sin_port = htons(PORT)};
 

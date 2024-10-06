@@ -10,7 +10,6 @@ int main(int argc, char **argv) {
                   SOCKET_CREATION_ERROR);
 
     struct sockaddr_in serv_addr = default_server_addr;
-    memset(serv_addr.sin_zero, '0', 8);
 
     exit_if_error(n_bind = bind(server_socket, (sockaddr*) &serv_addr, sizeof(sockaddr_in)), 
                   BIND_ERROR);
