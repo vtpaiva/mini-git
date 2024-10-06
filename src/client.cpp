@@ -74,7 +74,7 @@ void show_repo(SOCKET socket) {
 
 // Function to handle the client's command.
 static inline void handle_command(SOCKET socket, comm_line command) {
-    if(command.comm == "create" || command.comm == "xrepo")
+    if(command.comm == "create" || command.comm == "xrepo" || command.comm == "fork")
         /*IGNORE*/;
     else if(command.comm == "delete") 
         remove_comm(socket);

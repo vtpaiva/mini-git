@@ -96,6 +96,24 @@ void remove_comm(SOCKET socket, comm_line command, client &client) {
 
     send(socket, OK_MESSAGE, std::strlen(OK_MESSAGE), 0);
 }
+
+// Forks another user's repository.
+void fork_repo(SOCKET socket, client &client, comm_line command) {
+    // Gets repository name.
+    std::string repo_name(BUFFER_SIZE, '\0');
+
+    std::sscanf(command.arg.data(), "%*[^/]/%s", repo_name.data());
+
+    resize_till_null(repo_name);
+
+    // Creates repository and for.
+    change_repo("fork-" + repo_name, std::ref(client));
+
+    fs::path source = REPOS_DIR + command.arg, destiny = client.curr_dir;
+
+    fs::copy(source, destiny, fs::copy_options::recursive);
+}
+
 // Function to execute a command and send the output to the client.
 void execute_comm(SOCKET socket, client curr_client, std::string terminal_comm) {
     FILE* pipe;
@@ -149,6 +167,8 @@ static inline void handle_command(comm_line command, client &curr_client, SOCKET
         execute_comm(socket, curr_client, "ls -C " + REPOS_DIR + curr_client.name);
     else if(command.comm == "xrepo") 
         change_to_external_repo(command, std::ref(curr_client));
+    else if(command.comm == "fork")
+        fork_repo(socket, std::ref(curr_client), command);
     else if(command.comm == "comm")
         execute_comm(socket, curr_client, command.arg);
 }
