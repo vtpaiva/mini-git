@@ -21,8 +21,18 @@ This application is developed using C++ and utilizes the sockets library for com
   
   ```bash
   sudo apt-get install g++
+  ```
 
 ## How it works
+
+First, compile the using the follow command:
+
+  ```bash
+  make
+  ```
+
+Then, run ```./server``` and ```./client``` in separate terminals.
+After, insert the user's name and, once logged in, execute the table commands or use the terminal default commands on the client side to interact with the **mini-git** environment.
 
 When a client connects to the server using a specified name, they are redirected to their `main` repository. The client can then use various commands through the terminal to navigate and interact with the repository environment.
 
