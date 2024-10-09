@@ -118,8 +118,6 @@ void handle_command(SOCKET socket, command_line command) {
         comm_output(socket);
     else if(command.comm == "show")
         comm_output(socket);
-    else if(command.comm == "comm")
-        comm_output(socket);
     else if(command.comm == "repo") {
         if(command.arg == "") 
             show_repo(socket);

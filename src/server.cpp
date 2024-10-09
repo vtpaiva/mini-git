@@ -203,8 +203,6 @@ static inline void handle_command(command_line command, client &curr_client, SOC
         change_to_external_repo(command, std::ref(curr_client));
     else if(command.comm == "fork")
         fork_repo(socket, std::ref(curr_client), command);
-    else if(command.comm == "comm")
-        execute_comm(socket, curr_client, command.arg);
 }
 
 // Function to handle the connection from the client.
