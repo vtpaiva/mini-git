@@ -56,61 +56,6 @@ The server will have a `repos` folder that will be used as your machine. All rep
 | `fork 'user_name/repo_name`      | Forks another user's repository, creating a repository on the user's folder named "fork-repo_name". |
 | `exit`      | Disconnects client from the server (on client's terminal) or shut the server down (on server's terminal). |
 
-## Authors
-
-<table>
-  <tr>
-    <td align="center" style="border: none;">
-      <a href="" title="">
-        <img src="https://avatars.githubusercontent.com/u/144858995?v=4" width="100px;"  style="border-radius: 50%;"><br>
-        <sub>
-          <b>Felipe Aparecido<br></b>
-		  <span style="color:grey;">11954502</span>
-        </sub>
-      </a>
-    </td>
-    <td align="center" style="border: none;">
-      <a href="https://github.com/guaraujoc" title="github">
-        <img src="https://avatars.githubusercontent.com/u/130992375?s=400&u=168448c320a3ad61a9737a30880fa942249baedc&v=4" width="100px;"  style="border-radius: 50%;"><br>
-        <sub>
-          <b>Gustavo Araújo<br></b>
-		  <span style="color:grey;">13735630</span>
-        </sub>
-      </a>
-    </td>
-
- <td align="center" style="border: none;">
-      <a href="" title="">
-        <img src="https://avatars.githubusercontent.com/u/113041643?s=96&v=4" width="100px;"  style="border-radius: 50%;"><br>
-        <sub>
-          <b>Rafael Learth<br></b>
-		  <span style="color:grey;">13676367</span>
-        </sub>
-      </a>
-    </td>
-
- <td align="center" style="border: none;">
-      <a href="" title="">
-        <img src="https://avatars.githubusercontent.com/u/141160595?v=4" width="100px;"  style="border-radius: 50%;"><br>
-        <sub>
-          <b>Viktor Sergio<br></b>
-		  <span style="color:grey;">11800570</span>
-        </sub>
-      </a>
-    </td>
-
- <td align="center" style="border: none;">
-      <a href="" title="">
-        <img src="https://avatars.githubusercontent.com/u/105892477?s=96&v=4" width="100px;"  style="border-radius: 50%;"><br>
-        <sub>
-          <b>Vitor Augusto<br></b>
-		  <span style="color:grey;">13732303</span>
-        </sub>
-      </a>
-    </td>
-  </tr>
-</table>
-
 ## License
 
 This project is licensed under the **GNU General Public License v3.0**. You are free to redistribute it and/or modify it under the terms of the GPL, ensuring that the same rights apply to any derivative works. See [GNU General Public License v3.0](https://www.gnu.org/licenses/gpl-3.0.en.html) for more information.
