@@ -31,6 +31,8 @@ First, compile the using the follow command:
   make
   ```
 
+This command will also create `local` and `repos` directories.
+
 Then, run ```./server``` and ```./client``` in separate terminals.
 After, insert the user's name and, once logged in, execute the table commands or use the terminal default commands on the client side to interact with the **mini-git** environment.
 
